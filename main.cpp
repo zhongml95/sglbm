@@ -21,6 +21,7 @@ int main( int argc, char* argv[] )
     double nu = physVelocity*2*M_PI/Re;
     std::vector<std::vector<int>> material(resolution+1, std::vector<int>(resolution+1, 1));
     
+
     sglbm sglbm(nq, order, parameter1,parameter2);
     sglbm.setGeometry(L,resolution,lx,ly,material);
     sglbm.setFluid(physVelocity,nu,tau);

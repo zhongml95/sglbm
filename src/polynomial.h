@@ -31,11 +31,11 @@ public:
         alpha.resize(order+1);
         beta.resize(order+1);
         polynomialCoeffs.resize(order+1);
-        for (int i = 0; i < order+1; i++)
+        for (int i = 0; i < order+1; ++i)
         {
             phi[i].resize(nq);
             polynomialCoeffs[i].resize(order+1);
-            for (int j = 0; j < order+1; j++)
+            for (int j = 0; j < order+1; ++j)
             {
                 polynomialCoeffs[i][j] = 0.0;
             }
@@ -45,12 +45,12 @@ public:
 
         std::cout << "coefficients" << std::endl;
 
-        for (int i = 0; i < order+1; i++)
+        for (int i = 0; i < order+1; ++i)
         {
             std::vector<double> coeffs_i(order+1,0.0);
             coeffs_i = Legendre_coefficients(i);
             
-            for (int j = 0; j < order+1; j++)
+            for (int j = 0; j < order+1; ++j)
             {
                 
                 polynomialCoeffs[i][j] = coeffs_i[j] / coeffs_i[i];
@@ -60,10 +60,10 @@ public:
         }
 
         phiRan.resize(order+1);
-        for (int i = 0; i < order+1; i++)
+        for (int i = 0; i < order+1; ++i)
         {
             phiRan[i].resize(nq);
-            for (int k = 0; k < nq; k++){
+            for (int k = 0; k < nq; ++k){
                 phiRan[i][k] = 0.0;
             }
         }
@@ -76,17 +76,17 @@ public:
         beta[0] = beta[0] * 0.5;
 
         /*std::cout <<"alpha\tbeta" << std::endl;
-        for (int i = 0; i < order+1; i++)
+        for (int i = 0; i < order+1; ++i)
         {
             std::cout << alpha[i] << "\t" << beta[i] << std::endl;
         }*/
 
         t2Product.resize(order+1);
         t3Product.resize(order+1);
-        for (int i = 0; i < order+1; i++)
+        for (int i = 0; i < order+1; ++i)
         {
             t3Product[i].resize(order+1);
-            for (int j = 0; j < order+1; j++)
+            for (int j = 0; j < order+1; ++j)
             {
                 t3Product[i][j].resize(order+1);
             }
@@ -96,15 +96,15 @@ public:
         computeSP3();
 
         std::cout << "t2Product" << std::endl;
-        for (int i = 0; i < order+1; i++)
+        for (int i = 0; i < order+1; ++i)
         {
             std::cout << t2Product[i] << "\t";
         }
         std::cout<<std::endl;
 
         std::cout << "t3Product, m = 1" << std::endl;
-        for (int i = 0; i < order+1; i++){
-            for (int j = 0; j < order+1; j++){
+        for (int i = 0; i < order+1; ++i){
+            for (int j = 0; j < order+1; ++j){
                 std::cout << t3Product[i][j][1] << "\t";
             }
             std::cout<<std::endl;
@@ -247,12 +247,12 @@ public:
     void evaluatePhiRan()
     {        
         std::cout << "phiRan" << std::endl;
-        for (int k = 0; k < nq; k++)
+        for (int k = 0; k < nq; ++k)
         {
             double previousSumPhi = 0.0;
-            for (int i = 0; i < order+1; i++)
+            for (int i = 0; i < order+1; ++i)
             {
-                for (int j = 0; j < order+1; j++)
+                for (int j = 0; j < order+1; ++j)
                 {
                     phiRan[i][k] += polynomialCoeffs[i][j] * std::pow(points[k], j);
                     
@@ -268,7 +268,7 @@ public:
     double evaluate(int n, int k)
     {       
         double sum = 0.0;
-        for (int j = 0; j < n+1; j++){
+        for (int j = 0; j < n+1; ++j){
             sum += polynomialCoeffs[n][j] * std::pow(points[k], j);
         }
         return sum;
@@ -331,14 +331,14 @@ public:
         else{
             alpha[0] = nu;
             std::vector<double> nab(order+1,1.0);
-            for (int i = 1; i < order+1; i++){
+            for (int i = 1; i < order+1; ++i){
                 nab[i] = 2*i+a+b;
                 alpha[i] = (b*b-a*a) / (nab[i]*(nab[i]+2));
             }
 
             beta[0] = mu;
             beta[1] = 4*(a+1)*(b+1)/((a+b+2)*(a+b+2)*(a+b+3));
-            for (int i = 2; i < order+1; i++){
+            for (int i = 2; i < order+1; ++i){
                 beta[i] = 4*(i+a)*(i+b)*i*(i+a+b)/(nab[i]*nab[i]*(nab[i]+1)*(nab[i]-1));
             }
         }
@@ -347,17 +347,17 @@ public:
     void computeSP2()
     {
         t2Product[0] = beta[0];
-        for (int i = 1; i < order+1; i++){
+        for (int i = 1; i < order+1; ++i){
             t2Product[i] = t2Product[i-1]*beta[i];
         }
     }
 
     void computeSP3()
     {
-        for (int i = 0; i < order+1; i++){
-            for (int j = 0; j < order+1; j++){
+        for (int i = 0; i < order+1; ++i){
+            for (int j = 0; j < order+1; ++j){
                 for (int m = 0; m < order+1; m++){
-                    for (int k = 0; k < nq; k++){
+                    for (int k = 0; k < nq; ++k){
                         t3Product[i][j][m] += evaluate(i,k) * evaluate(j,k) * evaluate(m,k) * weights[k];
                     }
                 }
@@ -371,17 +371,17 @@ public:
         std::vector<std::vector<std::vector<double>>> tensor3d;
         tensor2d.resize(order+1);
         tensor3d.resize(order+1);
-        for (int i = 0; i < order+1; i++){
+        for (int i = 0; i < order+1; ++i){
             tensor2d[i].resize(order+1);
             tensor3d[i].resize(order+1);
-            for (int j = 0; j < order+1; j++){
+            for (int j = 0; j < order+1; ++j){
                 tensor3d[i][j].resize(order+1);
             }
         }
 
 
-        for (int i = 0; i < order+1; i++){
-            for (int j = 0; j < order+1; j++){
+        for (int i = 0; i < order+1; ++i){
+            for (int j = 0; j < order+1; ++j){
                 tensor2d[i][j] = 0.0;
                 for (int m = 0; m < order+1; m++){
                     tensor3d[i][j][m] = 0.0;
@@ -389,18 +389,18 @@ public:
             }
         }
 
-        for (int i = 0; i < order+1; i++){
-            for (int j = 0; j < order+1; j++){
-                for (int k = 0; k < nq; k++){
+        for (int i = 0; i < order+1; ++i){
+            for (int j = 0; j < order+1; ++j){
+                for (int k = 0; k < nq; ++k){
                     tensor2d[i][j] += evaluate(i,k) * evaluate(j,k) * weights[k];
                 }
             }
         }
 
-        for (int i = 0; i < order+1; i++){
-            for (int j = 0; j < order+1; j++){
+        for (int i = 0; i < order+1; ++i){
+            for (int j = 0; j < order+1; ++j){
                 for (int m = 0; m < order+1; m++){
-                    for (int k = 0; k < nq; k++){
+                    for (int k = 0; k < nq; ++k){
                         tensor3d[i][j][m] += evaluate(i,k) * evaluate(j,k) * evaluate(m,k) * weights[k];
                     }
                 }
@@ -408,16 +408,16 @@ public:
         }
 
         std::cout << "t2Product2" << std::endl;
-        for (int i = 0; i < order+1; i++){
-            for (int j = 0; j < order+1; j++){
+        for (int i = 0; i < order+1; ++i){
+            for (int j = 0; j < order+1; ++j){
                 std::cout << tensor2d[i][j] << "\t";
             }
             std::cout<<std::endl;
         }
 
         std::cout << "t3Product, m = 2" << std::endl;
-        for (int i = 0; i < order+1; i++){
-            for (int j = 0; j < order+1; j++){
+        for (int i = 0; i < order+1; ++i){
+            for (int j = 0; j < order+1; ++j){
                 std::cout << tensor3d[i][j][2] << "\t";
             }
             std::cout<<std::endl;
@@ -434,26 +434,67 @@ public:
         return domain;
     }
 
-    std::vector<double> evaluatePCE(std::vector<double> u)
+    void evaluatePCE(std::vector<double> u, std::vector<double>&uRan)
     {
-        std::vector<double> uRan(nq,0.0);
-        for (int k = 0; k < nq; k++){
-            for (int i = 0; i < order+1; i++){
-                uRan[k] += u[i] * evaluate(i,k);
+        
+        //for (int i = 0; i < order+1; ++i){
+        //    std::cout << u[i] << "\t" ;
+        //}
+        //std::cout << std::endl;
+
+        std::vector<double> _ran(nq, 0.0);
+
+        //for (int i = 0; i < nq; ++i){
+        //    std::cout << _ran[i] << "\t" ;
+        //}
+        //std::cout << std::endl;
+
+        for (int k = 0; k < nq; ++k){
+            for (int i = 0; i < order+1; ++i){
+                _ran[k] += u[i] * phiRan[i][k];
             }
         }
-        return uRan;
+        //for (int i = 0; i < nq; ++i){
+        //    std::cout << _ran[i] << "\t" ;
+        //}
+        //std::cout << std::endl;
+        uRan.swap(_ran);
+
+        //for (int i = 0; i < nq; ++i){
+        //    std::cout << uRan[i] << "\t" ;
+        //}
+        //std::cout << std::endl;
+        //std::cout << std::endl;
+
+        _ran.clear();
     }
 
-    std::vector<double> ran2chaos(std::vector<double> ran)
+    void ran2chaos(std::vector<double> ran, std::vector<double>&chaos)
     {    
-        std::vector<double> chaos(order+1, 0.0);
-        for (int i = 0; i < order+1; i++){
-            for (int k = 0; k < nq; k++){
-                chaos[i] += weights[k] * ran[k] * phiRan[i][k] / t2Product[i];
+        std::vector<double> _chaos(order+1, 0.0);
+
+        //for (int i = 0; i < order+1; ++i){
+        //    std::cout << _chaos[i] << "\t" ;
+        //}
+        //std::cout << std::endl;
+
+        for (int i = 0; i < order+1; ++i){
+            for (int k = 0; k < nq; ++k){
+                _chaos[i] += weights[k] * ran[k] * phiRan[i][k] / t2Product[i];
             }
         }
-        return chaos;
+        //for (int i = 0; i < order+1; ++i){
+        //    std::cout << _chaos[i] << "\t" ;
+        //}
+        //std::cout << std::endl;
+        chaos.swap(_chaos);
+        
+        //for (int i = 0; i < order+1; ++i){
+        //    std::cout << chaos[i] << "\t" ;
+        //}
+        //std::cout << std::endl;
+        //std::cout << std::endl;
+        _chaos.clear();
     }
 
     double mean(std::vector<double> chaos)
@@ -464,7 +505,7 @@ public:
     double std(std::vector<double> chaos)
     {
         double sum = 0.0;
-        for (int i = 1; i < order+1; i++){
+        for (int i = 1; i < order+1; ++i){
             sum += t2Product[i] * chaos[i] * chaos[i];
         }
         return sum;
