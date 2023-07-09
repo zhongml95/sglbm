@@ -43,7 +43,7 @@ public:
         
         gauss();
 
-        std::cout << "coefficients" << std::endl;
+        //std::cout << "coefficients" << std::endl;
 
         for (int i = 0; i < order+1; ++i)
         {
@@ -54,9 +54,9 @@ public:
             {
                 
                 polynomialCoeffs[i][j] = coeffs_i[j] / coeffs_i[i];
-                std::cout << polynomialCoeffs[i][j] << "\t";
+                //std::cout << polynomialCoeffs[i][j] << "\t";
             }
-            std::cout << std::endl;
+            //std::cout << std::endl;
         }
 
         phiRan.resize(order+1);
@@ -95,7 +95,7 @@ public:
         computeSP2();
         computeSP3();
 
-        std::cout << "t2Product" << std::endl;
+        /*std::cout << "t2Product" << std::endl;
         for (int i = 0; i < order+1; ++i)
         {
             std::cout << t2Product[i] << "\t";
@@ -108,7 +108,7 @@ public:
                 std::cout << t3Product[i][j][1] << "\t";
             }
             std::cout<<std::endl;
-        }
+        }*/
     }
 
     double eval(int n, double x)
@@ -246,7 +246,7 @@ public:
 
     void evaluatePhiRan()
     {        
-        std::cout << "phiRan" << std::endl;
+        //std::cout << "phiRan" << std::endl;
         for (int k = 0; k < nq; ++k)
         {
             double previousSumPhi = 0.0;
@@ -259,9 +259,9 @@ public:
                     //std::cout << points[k] << "\t";
                 }
                 //std::cout << std::endl;
-                std::cout << phiRan[i][k] << "\t";
+                //std::cout << phiRan[i][k] << "\t";
             }
-            std::cout << std::endl;
+            //std::cout << std::endl;
         }
     }
 
@@ -407,7 +407,7 @@ public:
             }
         }
 
-        std::cout << "t2Product2" << std::endl;
+        /*std::cout << "t2Product2" << std::endl;
         for (int i = 0; i < order+1; ++i){
             for (int j = 0; j < order+1; ++j){
                 std::cout << tensor2d[i][j] << "\t";
@@ -421,7 +421,7 @@ public:
                 std::cout << tensor3d[i][j][2] << "\t";
             }
             std::cout<<std::endl;
-        }
+        }*/
     }
 
     std::vector<double> convert2affinePCE(double para1, double para2)
@@ -497,6 +497,21 @@ public:
         _chaos.clear();
     }
 
+    void chaos_product(std::vector<double> chaos1, std::vector<double> chaos2, std::vector<double>&production)
+    {
+        for (int i = 0; i < order + 1; ++i) {
+            double sum = 0.0;
+
+            for (int j = 0; j < order + 1; ++j) {
+                for (int k = 0; k < order + 1; ++k) {
+                sum += chaos1[j] * chaos2[k] * t3Product[j][k][i];
+                }
+            }
+
+            production[i] = sum / t2Product[i];
+        }
+    }
+
     double mean(std::vector<double> chaos)
     {
         return chaos[0];
@@ -508,6 +523,6 @@ public:
         for (int i = 1; i < order+1; ++i){
             sum += t2Product[i] * chaos[i] * chaos[i];
         }
-        return sum;
+        return std::sqrt(sum);
     }
 };
