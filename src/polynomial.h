@@ -424,14 +424,12 @@ public:
         }*/
     }
 
-    std::vector<double> convert2affinePCE(double para1, double para2)
+    void convert2affinePCE(double para1, double para2, std::vector<double>&domain)
     {
-        std::vector<double> domain(2,0.0);
         double a1 = 0.5 * (para1 + para2);
         double a2 = 0.5 * (para2 - para1);
         domain[0] = a1 + alpha[0]  * a2;
         domain[1] = a2;
-        return domain;
     }
 
     void evaluatePCE(std::vector<double> u, std::vector<double>&uRan)

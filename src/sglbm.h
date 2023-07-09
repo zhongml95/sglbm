@@ -244,7 +244,7 @@ public:
     std::vector<double> chaos(2, 0.0);
     rChaos[0] = 1.0;
     std::cout << "omega: " << 1.0 / (3 * physViscosity * parameter2 / conversionViscosity + 0.5) << std::endl;
-    chaos = convert2affinePCE(1.0 / (3 * physViscosity * parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * parameter1 / conversionViscosity + 0.5));
+    convert2affinePCE(1.0 / (3 * physViscosity * parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * parameter1 / conversionViscosity + 0.5),chaos);
     omegaChaos[0] = chaos[0];
     omegaChaos[1] = chaos[1];
 
@@ -432,16 +432,6 @@ public:
     //std::cout << "streaming finished" << std::endl;
     f.swap(ftmp);
     ftmp.clear();
-    // Copy values back to f
-    /*for (int i = 0; i < nx; ++i) {
-        for (int j = 0; j < ny; ++j) {
-            for (int k = 0; k < 9; ++k) {
-                for (int alpha = 0; alpha < order + 1; ++alpha) {
-                    f[i][j][k][alpha] = ftmp[i][j][k][alpha];
-                }
-            }
-        }
-    }*/
   }
 
   void boundary()
@@ -564,16 +554,17 @@ public:
     double tkeAna = 0.0;
     totalKineticEnergy(tke, tkeAna, iter+1);
     outputFileTKE << mean(tke) << "\t" << std(tke);
+    tke.clear();
   }
 
     void totalKineticEnergy(std::vector<double>&tke, double&tkeAna, int t)
     {
+      std::vector<double> u2(order+1, 0.0);
+      std::vector<double> v2(order+1, 0.0);
+      std::vector<double> uSlice(order+1, 0.0);
+      std::vector<double> vSlice(order + 1, 0.0);
         for (int i = 0; i < nx; ++i){
             for (int j = 0; j < ny; ++j){
-                std::vector<double> u2(order+1, 0.0);
-                std::vector<double> v2(order+1, 0.0);
-                std::vector<double> uSlice(order+1, 0.0);
-                std::vector<double> vSlice(order + 1, 0.0);
                 for (int alpha = 0; alpha < order + 1; ++alpha) {
                     uSlice[alpha] = u[i][j][alpha];
                     vSlice[alpha] = v[i][j][alpha];
@@ -596,6 +587,10 @@ public:
 
             }
         }
+        u2.clear();
+        v2.clear();
+        uSlice.clear();
+        vSlice.clear();
     }
 
 
@@ -614,9 +609,9 @@ public:
     double t = 0.0, t0, t1;
 
     
-
+    size_t cores = omp_get_num_procs();
     omp_set_dynamic(0);
-    omp_set_num_threads(4);
+    omp_set_num_threads(cores);
 #pragma omp parallel 
     for (int i = 0; i < int(td * 0.5); ++i) {
       collision();  // parallel for
@@ -632,7 +627,7 @@ public:
 #pragma omp single
       {
         count = i;
-        if (i % 100 == 0) {
+        if (i % 1000 == 0) {
           //c_end = std::clock();
           end = omp_get_wtime();
           //double time_elapsed_s = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
