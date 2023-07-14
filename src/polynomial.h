@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <iomanip>
 
 class LegendrePoly
 {
@@ -44,6 +45,13 @@ public:
         gauss();
 
         //std::cout << "coefficients" << std::endl;
+
+        for(int i = 0; i < nq; ++i){
+            //weights[i]
+            std::cout << std::setprecision(20);
+            //std::cout << weights[i] << "\t";
+        }
+        //std::cout << std::endl;
 
         for (int i = 0; i < order+1; ++i)
         {
@@ -227,9 +235,16 @@ public:
         // Compute Weights
         for(int i = 0; i < nq; ++i){
             weights[i] = 1.0/((1-points[i]*points[i])*(Lp[i]*Lp[i]));
-            //std::cout << points[i] << std::endl;
-            //points[i] = points[i];
+            //std::cout << std::setprecision(20);
+            //std::cout << weights[i] << "\t";
         }
+        //std::cout << std::endl;
+
+        x0.clear();
+        L.clear();
+        Lp.clear();
+        a.clear();
+        b.clear();
 
         return iter;
     }

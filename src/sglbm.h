@@ -6,6 +6,7 @@
 #include <ctime>
 #include <omp.h>
 #include <sys/stat.h>
+#include <iomanip>
 
 class sglbm : public LegendrePoly {
 public:
@@ -30,6 +31,7 @@ public:
   double u0;
   double omega0;
   std::string dir;
+  std::string exm;
 
   double cs2 = 1.0 / 3.0;
   std::vector<int> cx = { 0, 1, 0, -1, 0, 1, -1, -1, 1 };
@@ -46,9 +48,10 @@ public:
   std::vector<std::vector<std::vector<std::vector<double>>>> f;
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
-  sglbm(int _nq, int _n, double _parameter1, double _parameter2) :LegendrePoly(_nq, _n, _parameter1, _parameter2)
+  sglbm(std::string _dir, std::string _exm, int _nq, int _n, double _parameter1, double _parameter2) :LegendrePoly(_nq, _n, _parameter1, _parameter2)
   {
-
+    dir = _dir;
+    exm = _exm;
   }
 
   std::vector<double> find_intersection(std::vector<double> center, double radius, std::vector<int> start_point, std::vector<int> end_point)
@@ -181,22 +184,6 @@ public:
     std::cout << "converstionVelocity = " << conversionVelocity << std::endl;
     std::cout << "converstionViscosity = " << conversionViscosity << std::endl;
 
-    dir = "./data/tgv/t2/Nr" + std::to_string(order+1) + "Nq" + std::to_string(nq) + "N" + std::to_string(nx) + "/";
-    std::string dirAna = "./data/tgv/t2/Nr" + std::to_string(order+1) + "Nq" + std::to_string(nq) + "N" + std::to_string(nx) + "/final/";
-
-    std::string command;
-    int a;
-    command = "rm -rf " + dir;
-    a = std::system(command.c_str());    
-    command = "mkdir -p " + dir;
-    a = std::system(command.c_str());
-    command = "mkdir -p " + dirAna;
-    a = std::system(command.c_str());
-
-    std::cout << dir << std::endl;
-    std::cout << "finish mkdir" << std::endl;
-
-
     u.resize(nx);
     v.resize(nx);
     rho.resize(nx);
@@ -245,8 +232,11 @@ public:
     rChaos[0] = 1.0;
     std::cout << "omega: " << 1.0 / (3 * physViscosity * parameter2 / conversionViscosity + 0.5) << std::endl;
     convert2affinePCE(1.0 / (3 * physViscosity * parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * parameter1 / conversionViscosity + 0.5),chaos);
-    omegaChaos[0] = chaos[0];
-    omegaChaos[1] = chaos[1];
+    
+    if (exm == "tgv"){
+      omegaChaos[0] = chaos[0];
+      omegaChaos[1] = chaos[1]; 
+    }
 
     std::cout << "chaos: " << chaos[0] << "\t" << chaos[1] << std::endl;
     chaos.clear();
@@ -260,13 +250,19 @@ public:
         //TGV            
         for (int alpha = 0; alpha < order + 1; ++alpha) {
           //printf("i: %d, j: %d, alpha: %d, omp_get_thread_num: %d\n", i,j,alpha,omp_get_thread_num()); 
-          if (alpha == 0) {
-            double x = i * dx;
-            double y = j * dy;
-            rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
-            uChaos[0] = -u0 * std::cos(x) * std::sin(y);
-            vChaos[0] = u0 * std::sin(x) * std::cos(y);
-            //printf("i: %d, j: %d, alpha: %d, omp_get_thread_num: %d\n", i,j,alpha,omp_get_thread_num()); 
+          if(exm == "tgv"){
+              double x = i * dx;
+              double y = j * dy;
+              rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
+              uChaos[0] = -u0 * std::cos(x) * std::sin(y);
+              vChaos[0] = u0 * std::sin(x) * std::cos(y);
+
+              //omegaChaos[0] = omega0;
+              //printf("i: %d, j: %d, alpha: %d, omp_get_thread_num: %d\n", i,j,alpha,omp_get_thread_num()); 
+          }
+          else if (exm == "cavity2d"){
+            rChaos[0] = 1.0;
+            omegaChaos[0] = omega0;
           }
 
           u[i][j][alpha] = uChaos[alpha];
@@ -434,10 +430,6 @@ public:
     ftmp.clear();
   }
 
-  void boundary()
-  {
-
-  }
 
   void reconstruction()
   {
@@ -450,8 +442,6 @@ public:
     std::vector<double> ruRan(nq, 0.0);
     std::vector<double> rvRan(nq, 0.0);
 
-    std::vector<double> uSlice(order + 1, 0.0);
-    std::vector<double> vSlice(order + 1, 0.0);
     std::vector<double> fSlice(order + 1, 0.0);
     std::vector<double> feqSlice(order + 1, 0.0);
 
@@ -493,6 +483,8 @@ public:
             uRan[sample] = ruRan[sample] / rRan[sample];
             vRan[sample] = rvRan[sample] / rRan[sample];
           }
+          std::vector<double> uSlice(order + 1, 0.0);
+          std::vector<double> vSlice(order + 1, 0.0);
 
           ran2chaos(uRan, uSlice);
           ran2chaos(vRan, vSlice);
@@ -500,6 +492,33 @@ public:
           for (int alpha = 0; alpha < order + 1; ++alpha) {
             u[i][j][alpha] = uSlice[alpha];
             v[i][j][alpha] = vSlice[alpha];
+          }
+          uSlice.clear();
+          vSlice.clear();
+        }
+        else if (material[i][j] == 2)
+        {
+          for (int alpha = 0; alpha < order + 1; ++alpha) {
+            u[i][j][alpha] = 0.0;
+            v[i][j][alpha] = 0.0;
+          }
+        }
+        else if (material[i][j] == 3){
+          std::vector<double> uSlice(order + 1, 0.0);
+          std::vector<double> vSlice(order + 1, 0.0);
+          std::vector<double> chaos(2,0.0);
+          convert2affinePCE(parameter1*u0, parameter2*u0,chaos);
+          uSlice[0] = chaos[0];
+          uSlice[1] = chaos[1];
+          evaluatePCE(uSlice, uRan);
+          std::vector<double> empty(nq, 0.0);
+          vRan.swap(empty);
+
+          for (int alpha = 0; alpha < order + 1; ++alpha) {
+            if (alpha == 0 || alpha == 1)
+              u[i][j][alpha] = 
+            u[i][j][alpha] = 0.0;
+            v[i][j][alpha] = 0.0;
           }
         }
 
@@ -544,16 +563,23 @@ public:
           vSlice[alpha] = v[i][j][alpha];
         }
         outputFile << x << "\t" << y << "\t" << mean(rSlice) << "\t" << mean(uSlice) * conversionVelocity << "\t" << mean(vSlice) * conversionVelocity << "\t" << std(rSlice) << "\t" << std(uSlice) * conversionVelocity << "\t" << std(vSlice) * conversionVelocity << "\n";
+
+        rSlice.clear();
+        uSlice.clear();
+        vSlice.clear();
       }
     }
-
+    outputFile.close();
 
     std::string filenameTKE = dir + "final/tke.dat";
     std::ofstream outputFileTKE(filenameTKE);
     std::vector<double> tke(order+1,0.0);
     double tkeAna = 0.0;
     totalKineticEnergy(tke, tkeAna, iter+1);
+
+    outputFileTKE.precision(20);  
     outputFileTKE << mean(tke) << "\t" << std(tke);
+    outputFileTKE.close();
     tke.clear();
   }
 
@@ -593,6 +619,60 @@ public:
         vSlice.clear();
     }
 
+    void boundary()
+    {
+      std::vector<double> rRan(nq, 0.0);
+      std::vector<double> uRan(nq, 0.0);
+      std::vector<double> vRan(nq, 0.0);
+      std::vector<double> rSlice(order+1, 0.0);
+      std::vector<double> uSlice(order+1, 0.0);
+      std::vector<double> feqSlice(order+1, 0.0);
+      std::vector<double> chaos(2,0.0);
+      convert2affinePCE(parameter1*u0, parameter2*u0,chaos);
+      uSlice[0] = chaos[0];
+      uSlice[1] = chaos[1];
+      evaluatePCE(uSlice, uRan);
+
+      #pragma omp for collapse(2)
+      for (int i = 0; i < nx; ++i){
+        for (int j = 0; j < ny; ++j){
+          if (material[i][j] == 2){
+            for (int k = 0; k < 9; ++k){
+              int new_i = i+cx[k];
+              int new_j = j+cy[k];
+              if ((new_i!=-1) && (new_i!=nx) && (new_j!=0) && (new_j!=ny)){
+                if (material[new_i][new_j] == 1){
+                  for (int alpha = 0; alpha < order+1; ++alpha){
+                    f[i][j][k][alpha] = f[new_i][new_j][kinv[k]][alpha];
+                  }
+                }
+              }
+            }
+          }
+          else if (material[i][j] == 3){
+            for (int alpha = 0; alpha < order + 1; ++alpha) {
+              rSlice[alpha] = rho[i][j-1][alpha];
+              //uSlice[alpha] = u[i][j][alpha];
+              //vSlice[alpha] = v[i][j][alpha];
+            }
+            evaluatePCE(rSlice, rRan);
+
+            for (int k = 0; k < 9; ++k) {
+              std::vector<double> feqRan(nq, 0.0);
+              for (int sample = 0; sample < nq; sample++) {
+                feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
+              }
+
+              ran2chaos(feqRan, feqSlice);
+              for (int alpha = 0; alpha < order + 1; ++alpha) {
+                feq[i][j][k][alpha] = feqSlice[alpha] + f[i][j-1][k][alpha] - feq[i][j-1][k][alpha];
+              }
+            }
+          }
+        }
+      }
+    }
+
 
 
   void iteration()
@@ -608,14 +688,15 @@ public:
 
     double t = 0.0, t0, t1;
 
-    
+    output(dir, 0);
+
     size_t cores = omp_get_num_procs();
     omp_set_dynamic(0);
     omp_set_num_threads(cores);
 #pragma omp parallel 
-    for (int i = 0; i < int(td * 0.5); ++i) {
+    for (int i = 1; i < int(td * 0.5); ++i) {
       collision();  // parallel for
-      //boundary();
+      boundary();
 #pragma omp single
       {
         t0 = omp_get_wtime();
@@ -627,7 +708,7 @@ public:
 #pragma omp single
       {
         count = i;
-        if (i % 1000 == 0) {
+        if (i % 10 == 0) {
           //c_end = std::clock();
           end = omp_get_wtime();
           //double time_elapsed_s = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
@@ -635,7 +716,7 @@ public:
           std::vector<double> tke(order+1,0.0);
           double tkeAna = 0.0;
           totalKineticEnergy(tke, tkeAna, count+1);
-            double err = std::abs((mean(tke)-tkeAna) / tkeAna);
+          double err = std::abs((mean(tke)-tkeAna) / tkeAna);
           std::cout << "iter: " << i << " " << "CPI time used: " << end - start << "s" << "  streaming time: " << t << "\t" << "TKE " << err << std::endl;
           output(dir, i);
           //c_start = c_end;
