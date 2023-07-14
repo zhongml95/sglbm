@@ -262,9 +262,9 @@ public:
           }
           else if (exm == "cavity2d"){
             rChaos[0] = 1.0;
-            omegaChaos[0] = omega0;
+            omegaChaos[0] = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
           }
-
+          
           u[i][j][alpha] = uChaos[alpha];
           v[i][j][alpha] = vChaos[alpha];
           rho[i][j][alpha] = rChaos[alpha];
@@ -397,7 +397,7 @@ public:
   {
     std::vector<std::vector<std::vector<std::vector<double>>>> ftmp(nx, std::vector<std::vector<std::vector<double>>>(ny, std::vector<std::vector<double>>(9, std::vector<double>(order + 1, 0.0))));
     //std::cout << "streaming start" << std::endl;
-//#pragma omp for collapse(2)
+#pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
@@ -421,13 +421,16 @@ public:
           for (int alpha = 0; alpha < order + 1; ++alpha) {
             ftmp[new_i][new_j][k][alpha] = f[i][j][k][alpha];
           }
-
         }
       }
     }
     //std::cout << "streaming finished" << std::endl;
+     #pragma omp barrier
+#pragma omp single
+      {
     f.swap(ftmp);
     ftmp.clear();
+      }
   }
 
 
@@ -502,6 +505,10 @@ public:
             u[i][j][alpha] = 0.0;
             v[i][j][alpha] = 0.0;
           }
+          for (int sample = 0; sample < nq; sample++) {
+            uRan[sample] = 0.0;
+            vRan[sample] = 0.0;
+          }
         }
         else if (material[i][j] == 3){
           std::vector<double> uSlice(order + 1, 0.0);
@@ -532,6 +539,7 @@ public:
           for (int alpha = 0; alpha < order + 1; ++alpha) {
             feq[i][j][k][alpha] = feqSlice[alpha];
           }
+          feqRan.clear();
         }
       } //
     }
@@ -547,7 +555,7 @@ public:
       return;
     }
 
-    outputFile << "VARIABLE = \"X\", \"Y\", \"U_MEAN\", \"U_STD\", \"V_MEAN\", \"V_STD\", \"P_MEAN\", \"P_STD\"\n";
+    outputFile << "variables = \"X\", \"Y\", \"RhoMean\", \"uMean\", \"vMean\", \"RhoStd\", \"uStd\", \"vStd\", \"geometry\"\n";
     outputFile << "ZONE I = " << nx << ", J = " << ny << ", F = POINT\n";
 
     for (int i = 0; i < nx; ++i) {
@@ -562,7 +570,7 @@ public:
           uSlice[alpha] = u[i][j][alpha];
           vSlice[alpha] = v[i][j][alpha];
         }
-        outputFile << x << "\t" << y << "\t" << mean(rSlice) << "\t" << mean(uSlice) * conversionVelocity << "\t" << mean(vSlice) * conversionVelocity << "\t" << std(rSlice) << "\t" << std(uSlice) * conversionVelocity << "\t" << std(vSlice) * conversionVelocity << "\n";
+        outputFile << x << "\t" << y << "\t" << mean(rSlice) << "\t" << mean(uSlice) * conversionVelocity << "\t" << mean(vSlice) * conversionVelocity << "\t" << std(rSlice) << "\t" << std(uSlice) * conversionVelocity << "\t" << std(vSlice) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
 
         rSlice.clear();
         uSlice.clear();
@@ -571,16 +579,45 @@ public:
     }
     outputFile.close();
 
-    std::string filenameTKE = dir + "final/tke.dat";
-    std::ofstream outputFileTKE(filenameTKE);
-    std::vector<double> tke(order+1,0.0);
-    double tkeAna = 0.0;
-    totalKineticEnergy(tke, tkeAna, iter+1);
+    if (exm == "tgv"){
+      std::string filenameTKE = dir + "final/tke.dat";
+      std::ofstream outputFileTKE(filenameTKE);
+      std::vector<double> tke(order+1,0.0);
+      double tkeAna = 0.0;
+      totalKineticEnergy(tke, tkeAna, iter+1);
 
-    outputFileTKE.precision(20);  
-    outputFileTKE << mean(tke) << "\t" << std(tke);
-    outputFileTKE.close();
-    tke.clear();
+      outputFileTKE.precision(20);  
+      outputFileTKE << mean(tke) << "\t" << std(tke);
+      outputFileTKE.close();
+      tke.clear();
+    }
+
+    std::string filenameU = dir + "final/u.dat";
+    std::ofstream outputFileU(filenameU);
+
+    for(int j = 0; j < ny; ++j){
+      std::vector<double> uSlice(order + 1, 0.0);
+      for (int alpha = 0; alpha < order + 1; ++alpha) {
+        uSlice[alpha] = u[nx/2][j][alpha];
+      }
+      outputFileU << mean(uSlice) << "\t" << std(uSlice) << "\n";
+      uSlice.clear();
+    }      
+    outputFileU.close();
+
+    std::string filenameV = dir + "final/v.dat";
+    std::ofstream outputFileV(filenameV);
+
+    for(int i = 0; i < ny; ++i){
+      std::vector<double> vSlice(order + 1, 0.0);
+      for (int alpha = 0; alpha < order + 1; ++alpha) {
+        vSlice[alpha] = v[i][ny/2][alpha];
+      }
+      outputFileU << mean(vSlice) << "\t" << std(vSlice) << "\n";
+      vSlice.clear();
+    }      
+    outputFileV.close();
+
   }
 
     void totalKineticEnergy(std::vector<double>&tke, double&tkeAna, int t)
@@ -673,62 +710,7 @@ public:
       }
     }
 
-
-
-  void iteration()
-  {
-    std::cout << "start iteration" << std::endl;
-    double td = 1.0 / (physViscosity * (dx * dx + dy * dy));
-    std::cout << "td: " << td << std::endl;
-    int count = 0;
-    //std::clock_t c_start = std::clock();
-    double start = omp_get_wtime();
-    //std::clock_t c_end = std::clock();
-    double end = omp_get_wtime();
-
-    double t = 0.0, t0, t1;
-
-    output(dir, 0);
-
-    size_t cores = omp_get_num_procs();
-    omp_set_dynamic(0);
-    omp_set_num_threads(cores);
-#pragma omp parallel 
-    for (int i = 1; i < int(td * 0.5); ++i) {
-      collision();  // parallel for
-      boundary();
-#pragma omp single
-      {
-        t0 = omp_get_wtime();
-        streaming();
-        t1 = omp_get_wtime();
-        t += t1 - t0;
-      }
-      reconstruction(); // parallel for
-#pragma omp single
-      {
-        count = i;
-        if (i % 10 == 0) {
-          //c_end = std::clock();
-          end = omp_get_wtime();
-          //double time_elapsed_s = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
-          //std::cout << "iter: " << i << " " << "CPI time used: " << time_elapsed_s << "ms" << std::endl;
-          std::vector<double> tke(order+1,0.0);
-          double tkeAna = 0.0;
-          totalKineticEnergy(tke, tkeAna, count+1);
-          double err = std::abs((mean(tke)-tkeAna) / tkeAna);
-          std::cout << "iter: " << i << " " << "CPI time used: " << end - start << "s" << "  streaming time: " << t << "\t" << "TKE " << err << std::endl;
-          output(dir, i);
-          //c_start = c_end;
-          start = end;
-          t = 0.0;
-        }
-      }
-    }
-    output(dir, count);
-  }
 };
-
 
 
 
