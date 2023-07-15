@@ -46,6 +46,7 @@ public:
   std::vector<std::vector<std::vector<double>>> rho;
   std::vector<std::vector<std::vector<double>>> omega;
   std::vector<std::vector<std::vector<std::vector<double>>>> f;
+  std::vector<std::vector<std::vector<std::vector<double>>>> F;
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
   sglbm(std::string _dir, std::string _exm, int _nq, int _n, double _parameter1, double _parameter2) :LegendrePoly(_nq, _n, _parameter1, _parameter2)
@@ -189,6 +190,7 @@ public:
     rho.resize(nx);
     omega.resize(nx);
     f.resize(nx);
+    F.resize(nx);
     feq.resize(nx);
 
     for (int i = 0; i < nx; ++i) {
@@ -197,6 +199,7 @@ public:
       rho[i].resize(ny);
       omega[i].resize(ny);
       f[i].resize(ny);
+      F[i].resize(ny);
       feq[i].resize(ny);
       for (int j = 0; j < ny; ++j) {
         u[i][j].resize(order + 1);
@@ -211,12 +214,15 @@ public:
         }
 
         f[i][j].resize(9);
+        F[i][j].resize(9);
         feq[i][j].resize(9);
         for (int k = 0; k < 9; ++k) {
           f[i][j][k].resize(order + 1);
+          F[i][j][k].resize(order + 1);
           feq[i][j][k].resize(order + 1);
           for (int alpha = 0; alpha < order + 1; ++alpha) {
             f[i][j][k][alpha] = 0.0;
+            F[i][j][k][alpha] = 0.0;
             feq[i][j][k][alpha] = 0.0;
           }
         }
@@ -309,6 +315,7 @@ public:
             feq[i][j][k][alpha] = feqSlice[alpha];
             //std::cout << feqSlice[alpha] << std::endl;
             f[i][j][k][alpha] = feqSlice[alpha];
+            F[i][j][k][alpha] = feqSlice[alpha];
           }
         }
       }
@@ -354,7 +361,7 @@ public:
           collisionTerm(fSlice, feqSlice, omegaSlice, QSlice);
 
           for (int alpha = 0; alpha < order + 1; ++alpha) {
-            f[i][j][k][alpha] += QSlice[alpha];
+            F[i][j][k][alpha] = f[i][j][k][alpha] + QSlice[alpha];
             //std::cout << QSlice[alpha] << std::endl;
           }
         }
@@ -395,14 +402,14 @@ public:
 
   void streaming()
   {
-    std::vector<std::vector<std::vector<std::vector<double>>>> ftmp(nx, std::vector<std::vector<std::vector<double>>>(ny, std::vector<std::vector<double>>(9, std::vector<double>(order + 1, 0.0))));
+    //std::vector<std::vector<std::vector<std::vector<double>>>> ftmp(nx, std::vector<std::vector<std::vector<double>>>(ny, std::vector<std::vector<double>>(9, std::vector<double>(order + 1, 0.0))));
     //std::cout << "streaming start" << std::endl;
 #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
 
-          int new_i = i + cx[k];
+          /*int new_i = i + cx[k];
           int new_j = j + cy[k];
 
           if (new_i == nx)
@@ -415,22 +422,24 @@ public:
             new_j = 0;
 
           if (new_j == -1)
-            new_j = ny - 1;
+            new_j = ny - 1;*/
 
+				int ii = (i + nx + cx[k]) % (nx);
+				int jj = (j + ny + cy[k]) % (ny);
           //std::cout << new_i << " " << new_j << " " << k << " " << omp_get_thread_num() << std::endl;
           for (int alpha = 0; alpha < order + 1; ++alpha) {
-            ftmp[new_i][new_j][k][alpha] = f[i][j][k][alpha];
+            f[ii][jj][k][alpha] = F[i][j][k][alpha];
           }
         }
       }
     }
     //std::cout << "streaming finished" << std::endl;
-     #pragma omp barrier
-#pragma omp single
+//     #pragma omp barrier
+/*#pragma omp single
       {
     f.swap(ftmp);
     ftmp.clear();
-      }
+      }*/
   }
 
 
@@ -600,7 +609,7 @@ public:
       for (int alpha = 0; alpha < order + 1; ++alpha) {
         uSlice[alpha] = u[nx/2][j][alpha];
       }
-      outputFileU << mean(uSlice) << "\t" << std(uSlice) << "\n";
+      outputFileU << j << "\t" << mean(uSlice) << "\t" << std(uSlice) << "\n";
       uSlice.clear();
     }      
     outputFileU.close();
@@ -608,12 +617,12 @@ public:
     std::string filenameV = dir + "final/v.dat";
     std::ofstream outputFileV(filenameV);
 
-    for(int i = 0; i < ny; ++i){
+    for(int i = 0; i < nx; ++i){
       std::vector<double> vSlice(order + 1, 0.0);
       for (int alpha = 0; alpha < order + 1; ++alpha) {
-        vSlice[alpha] = v[i][ny/2][alpha];
+        vSlice[alpha] = v[i][nx/2][alpha];
       }
-      outputFileU << mean(vSlice) << "\t" << std(vSlice) << "\n";
+      outputFileV << i << "\t" << mean(vSlice) << "\t" << std(vSlice) << "\n";
       vSlice.clear();
     }      
     outputFileV.close();
@@ -680,7 +689,7 @@ public:
               if ((new_i!=-1) && (new_i!=nx) && (new_j!=0) && (new_j!=ny)){
                 if (material[new_i][new_j] == 1){
                   for (int alpha = 0; alpha < order+1; ++alpha){
-                    f[i][j][k][alpha] = f[new_i][new_j][kinv[k]][alpha];
+                    F[i][j][k][alpha] = F[new_i][new_j][kinv[k]][alpha];
                   }
                 }
               }
@@ -702,7 +711,7 @@ public:
 
               ran2chaos(feqRan, feqSlice);
               for (int alpha = 0; alpha < order + 1; ++alpha) {
-                feq[i][j][k][alpha] = feqSlice[alpha] + f[i][j-1][k][alpha] - feq[i][j-1][k][alpha];
+                F[i][j][k][alpha] = feqSlice[alpha] + F[i][j-1][k][alpha] - feq[i][j-1][k][alpha];
               }
             }
           }
