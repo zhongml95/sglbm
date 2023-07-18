@@ -118,8 +118,15 @@ public:
     dy = L / N;
     lx = _lx;
     ly = _ly;
-    nx = int(lx / dx);//+1;
-    ny = int(ly / dy);//+1;
+    
+    nx = int(lx / dx) + 1;
+    ny = int(ly / dy) + 1;
+
+    if (exm == "tgv"){
+      nx = int(lx / dx);
+      ny = int(ly / dy);
+    }
+
     material.resize(nx);
     for (int i = 0; i < nx; ++i) {
       material[i].resize(ny);
@@ -259,6 +266,7 @@ public:
           if(exm == "tgv"){
               double x = i * dx;
               double y = j * dy;
+              
               rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
               uChaos[0] = -u0 * std::cos(x) * std::sin(y);
               vChaos[0] = u0 * std::sin(x) * std::cos(y);
@@ -362,7 +370,7 @@ public:
 
           for (int alpha = 0; alpha < order + 1; ++alpha) {
             F[i][j][k][alpha] = f[i][j][k][alpha] + QSlice[alpha];
-            //std::cout << QSlice[alpha] << std::endl;
+            //std::cout << F[i][j][k][alpha] << std::endl;
           }
         }
       }
@@ -404,48 +412,24 @@ public:
   {
     //std::vector<std::vector<std::vector<std::vector<double>>>> ftmp(nx, std::vector<std::vector<std::vector<double>>>(ny, std::vector<std::vector<double>>(9, std::vector<double>(order + 1, 0.0))));
     //std::cout << "streaming start" << std::endl;
-#pragma omp for collapse(2)
+    #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
-
-          /*int new_i = i + cx[k];
-          int new_j = j + cy[k];
-
-          if (new_i == nx)
-            new_i = 0;
-
-          if (new_i == -1)
-            new_i = nx - 1;
-
-          if (new_j == ny)
-            new_j = 0;
-
-          if (new_j == -1)
-            new_j = ny - 1;*/
-
-				int ii = (i + nx + cx[k]) % (nx);
-				int jj = (j + ny + cy[k]) % (ny);
-          //std::cout << new_i << " " << new_j << " " << k << " " << omp_get_thread_num() << std::endl;
+          int ii = (i + nx + cx[k]) % (nx);
+          int jj = (j + ny + cy[k]) % (ny);
           for (int alpha = 0; alpha < order + 1; ++alpha) {
             f[ii][jj][k][alpha] = F[i][j][k][alpha];
           }
         }
       }
     }
-    //std::cout << "streaming finished" << std::endl;
-//     #pragma omp barrier
-/*#pragma omp single
-      {
-    f.swap(ftmp);
-    ftmp.clear();
-      }*/
+
   }
 
 
   void reconstruction()
   {
-    int nProcessors = omp_get_max_threads();
     //std::cout<<"max threads: " << nProcessors<<std::endl;
     //omp_set_dynamic(0);     // Explicitly disable dynamic teams
     std::vector<double> rRan(nq, 0.0);
@@ -569,8 +553,8 @@ public:
 
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
-        double x = static_cast<double>(i) / (nx - 1);
-        double y = static_cast<double>(j) / (ny - 1);
+        double x = i * dx;
+        double y = j * dy;
         std::vector<double> rSlice(order + 1, 0.0);
         std::vector<double> uSlice(order + 1, 0.0);
         std::vector<double> vSlice(order + 1, 0.0);
@@ -605,11 +589,28 @@ public:
     std::ofstream outputFileU(filenameU);
 
     for(int j = 0; j < ny; ++j){
+      int idx = (nx+1)/2;
+      if (exm == "tgv"){
+        idx = nx / 2 + 1;
+      }
       std::vector<double> uSlice(order + 1, 0.0);
       for (int alpha = 0; alpha < order + 1; ++alpha) {
-        uSlice[alpha] = u[nx/2][j][alpha];
+        uSlice[alpha] = u[idx][j][alpha];
       }
-      outputFileU << j << "\t" << mean(uSlice) << "\t" << std(uSlice) << "\n";
+
+      outputFileU.precision(20);  
+      outputFileU << j * dy << "\t" << mean(uSlice) * conversionVelocity << "\t" << std(uSlice) * conversionVelocity ;
+
+      if (exm == "tgv"){
+        double x = idx * dx;
+        double y = j * dy;
+        double k2 = dx*dx + dy*dy;
+        double damp = std::exp(-k2*physViscosity*iter);
+        outputFileU << "\t" << -u0 * std::cos(x) * std::sin(y) * damp * conversionVelocity;
+      }
+
+      outputFileU << "\n";
+
       uSlice.clear();
     }      
     outputFileU.close();
@@ -618,11 +619,28 @@ public:
     std::ofstream outputFileV(filenameV);
 
     for(int i = 0; i < nx; ++i){
+      int idy = (ny+1)/2;      
+      if (exm == "tgv"){
+        idy = ny / 2 + 1;
+      }
       std::vector<double> vSlice(order + 1, 0.0);
       for (int alpha = 0; alpha < order + 1; ++alpha) {
-        vSlice[alpha] = v[i][nx/2][alpha];
+        vSlice[alpha] = v[i][idy][alpha];
       }
-      outputFileV << i << "\t" << mean(vSlice) << "\t" << std(vSlice) << "\n";
+
+
+      outputFileV.precision(20);  
+      outputFileV << i * dx << "\t" << mean(vSlice) * conversionVelocity << "\t" << std(vSlice) * conversionVelocity;
+
+      if (exm == "tgv"){
+        double x = i * dx;
+        double y = idy * dy;
+        double k2 = dx*dx + dy*dy;
+        double damp = std::exp(-k2*physViscosity*iter);
+        outputFileU << "\t" << u0 * std::sin(x) * std::cos(y) * damp * conversionVelocity;
+      }
+
+      outputFileV << "\n";
       vSlice.clear();
     }      
     outputFileV.close();
@@ -654,7 +672,7 @@ public:
                 double k2 = dx*dx + dy*dy;
                 double damp = std::exp(-k2*physViscosity*t);
                 double uAna = -u0 * std::cos(x) * std::sin(y) * damp;
-                double vAna = u0 * std::sin(x) * std::cos(y) * damp;
+                double vAna =  u0 * std::sin(x) * std::cos(y) * damp;
                 tkeAna += ((uAna * uAna + vAna * vAna)*2/(nx*ny*u0*u0));
 
             }

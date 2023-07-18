@@ -33,7 +33,7 @@ int main( int argc, char* argv[] )
 {
     unsigned int order = 4;
     unsigned int nq = 15;
-    int resolution = 128;
+    int resolution = 256;
     double parameter1 = 0.9;
     double parameter2 = 1.1;
     double L = 1.0;//2.0 * M_PI;
@@ -48,11 +48,11 @@ int main( int argc, char* argv[] )
 
     double dx = L / resolution;
     double dy = L / resolution;
-    int nx = int(lx / dx);//+1;
-    int ny = int(ly / dy);//+1;
+    int nx = int(lx / dx)+1;
+    int ny = int(ly / dy)+1;
 
-    std::string dir = "./data/cavity2d/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(nx) + "/";
-    std::string dirAna = "./data/cavity2d/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(nx) + "/final/";
+    std::string dir = "./data/cavity2d/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/";
+    std::string dirAna = "./data/cavity2d/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/final/";
 
     std::string command;
     int a;
@@ -109,34 +109,22 @@ int main( int argc, char* argv[] )
     //for (int i = 1; i < 100000; ++i) {
       while(error > 0.0001) {
       sglbm.collision();  // parallel for
-        sglbm.boundary();
-#pragma omp single
-      {
-        t0 = omp_get_wtime();
-      }
-        sglbm.streaming();
-        #pragma omp single
-      {
-        t1 = omp_get_wtime();
-        t += t1 - t0;
-      }
+      sglbm.boundary();
+      sglbm.streaming();
       //}
       sglbm.reconstruction(); // parallel for
 #pragma omp single
       {
         count++;
-        if (count % 10000 == 0) {
-          //c_end = std::clock();
-          end = omp_get_wtime();
-          //double time_elapsed_s = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
-          //std::cout << "iter: " << i << " " << "CPI time used: " << time_elapsed_s << "ms" << std::endl;
+        if (count % 1000 == 0){
           error = calcError(sglbm, uNorm);
-          std::cout << "iter: " << count << " " << "CPI time used: " << end - start << "s" << "  streaming time: " << t << "\t" << "err: " << error << std::endl;
-          sglbm.output(dir, count);
-          //c_start = c_end;
+          end = omp_get_wtime();
+          std::cout << "iter: " << count << " " << "CPI time used: " << end - start << "s" << "\t" << "err: " << error << std::endl;
           start = end;
           t = 0.0;
-
+          if (count % 10000 == 0) {
+            sglbm.output(dir, count);
+          }
         }
       }
     }

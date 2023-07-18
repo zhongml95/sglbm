@@ -51,14 +51,14 @@ public:
             std::cout << std::setprecision(20);
             //std::cout << weights[i] << "\t";
         }
-        //std::cout << std::endl;
+        std::cout << std::endl;
 
         for (int i = 0; i < order+1; ++i)
         {
             std::vector<double> coeffs_i(order+1,0.0);
             coeffs_i = Legendre_coefficients(i);
             
-            for (int j = 0; j < order+1; ++j)
+            for (int j = 0; j < i+1; ++j)
             {
                 
                 polynomialCoeffs[i][j] = coeffs_i[j] / coeffs_i[i];
@@ -151,7 +151,7 @@ public:
     {
         for(int i = 0; i < nq; ++i) 
         {
-            points[i] = cos(M_PI * double(2 * i + 1) / double(2 * nq));    
+            points[i] = cos(M_PI * double(2.0 * i + 1.0) / double(2.0 * nq));    
         } 
     } 
 
@@ -159,7 +159,7 @@ public:
     {   
         for(int i = 0; i < nq; ++i) 
         {   
-            points[i] = -cos(M_PI * double(i + .75)/double(nq + 0.5));    
+            points[i] = -cos(M_PI * double(i + 0.75)/double(nq + 0.5));    
         }     
     }
 
@@ -271,12 +271,12 @@ public:
                 {
                     phiRan[i][k] += polynomialCoeffs[i][j] * std::pow(points[k], j);
                     
-                    //std::cout << points[k] << "\t";
+                    //std::cout << polynomialCoeffs[i][j] << "\t";
                 }
                 //std::cout << std::endl;
                 //std::cout << phiRan[i][k] << "\t";
             }
-            //std::cout << std::endl;
+            std::cout << std::endl;
         }
     }
 
@@ -301,7 +301,7 @@ public:
         }
 
         // Initialize with zero, only at most (half + 1) of the terms will be changed later
-        std::vector<double> coeffs(m + 1);
+        std::vector<double> coeffs(m + 1, 0.0);
 
         // Consider some form of memoization instead of this recursion
         std::vector<double> v = Legendre_coefficients(m - 1);
@@ -324,7 +324,6 @@ public:
             coeffs[i] = (a * v[i - 1] - b * u[i]);
         }
         coeffs[m] = a * v[m - 1];
-
         return coeffs;
     }
 
