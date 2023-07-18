@@ -99,7 +99,7 @@ int main( int argc, char* argv[] )
 
     size_t cores = omp_get_num_procs();
     omp_set_dynamic(0);
-    omp_set_num_threads(cores);
+    omp_set_num_threads(8);
 
   double error = 1.0;
   double uNorm = 1.0;
@@ -107,21 +107,25 @@ int main( int argc, char* argv[] )
 
 #pragma omp parallel 
     //for (int i = 1; i < 100000; ++i) {
-      while(error > 0.00001) {
+      while(error > 0.0001) {
       sglbm.collision();  // parallel for
         sglbm.boundary();
 #pragma omp single
       {
         t0 = omp_get_wtime();
+      }
         sglbm.streaming();
+        #pragma omp single
+      {
         t1 = omp_get_wtime();
         t += t1 - t0;
       }
+      //}
       sglbm.reconstruction(); // parallel for
 #pragma omp single
       {
         count++;
-        if (count % 100 == 0) {
+        if (count % 10000 == 0) {
           //c_end = std::clock();
           end = omp_get_wtime();
           //double time_elapsed_s = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
