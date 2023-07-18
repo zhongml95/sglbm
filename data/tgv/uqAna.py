@@ -10,6 +10,7 @@ def reshape(oldMatrix):
             newMatrix[i,j] = oldMatrix[step*i,step*j]
     return newMatrix
 
+
 nrlist32 = np.array([1, 2, 3, 4, 5, 6, 7, 8])
 #nqlist32 = np.array([3, 5, 7, 9, 11, 13, 15, 17])
 nqlist32 = np.array([100, 100, 100, 100, 100, 100, 100, 100])

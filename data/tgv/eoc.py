@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 
 
+
 #diffusive scaling omega = 1.6
 data8 = np.loadtxt("./t5/Nr4Nq9N8/final/tke.dat")
 data16 = np.loadtxt("./t5/Nr4Nq9N16/final/tke.dat")

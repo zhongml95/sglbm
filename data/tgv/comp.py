@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+
 SGdataU = np.loadtxt("./t5/Nr4Nq9N32/U1646.dat")
 
 mcDataU1E3 = np.loadtxt("/home/zhongml95/olb/examples/laminar/tgv2d/results/NX32/uniform/N1/Nq100/tgv2dU.dat")
