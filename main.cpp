@@ -3,24 +3,32 @@
 //#include "src/polynomial.h"
 #include "src/sglbm.h"
 
+double calc_tke_error(sglbm sglbm, int count) {
+  
+  std::vector<double> tke(sglbm.op.order+1,0.0);
+  double tkeAna = 0.0;
+  sglbm.totalKineticEnergy(tke, tkeAna, count);
+  return std::abs((sglbm.op.mean(tke)-tkeAna) / tkeAna);
+}
 
 int main( int argc, char* argv[] )
 {
-    unsigned int order = 15;
-    unsigned int nq = 31;
+    unsigned int order = 4;
+    unsigned int nq = 100;
+    int polynomialType = 0;
     int resolution = 32;
-    double parameter1 = 0.9;
-    double parameter2 = 1.1;
+    double parameter1 = 0.8;//0.8
+    double parameter2 = 1.2;//1.2
     double L = 2.0 * M_PI;
     double lx = 2.0 * M_PI;
     double ly = 2.0 * M_PI;
     double dx = L / resolution;
     double dy = L / resolution;
 
-    double tau = 0.5125663706143592;
     double Re = 15;
     double physVelocity = 0.01;
-    double nu = physVelocity*2*M_PI/Re;
+    double nu = physVelocity*L/Re;
+    double tau = 3 * nu + 0.5;
     std::vector<std::vector<int>> material(resolution+1, std::vector<int>(resolution+1, 1));
     
     std::string dir = "./data/tgv/t5/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/";
@@ -39,7 +47,7 @@ int main( int argc, char* argv[] )
     std::cout << "finish mkdir" << std::endl;
 
 
-    sglbm sglbm(dir, "tgv", nq, order, parameter1,parameter2);
+    sglbm sglbm(dir, "tgv", nq, order, parameter1,parameter2, polynomialType);
     sglbm.setGeometry(L,resolution,lx,ly,material);
     sglbm.setFluid(physVelocity,nu,tau);
     sglbm.initialize();
@@ -52,8 +60,10 @@ int main( int argc, char* argv[] )
     int count = 0;
     //std::clock_t c_start = std::clock();
     double start = omp_get_wtime();
+    double start_0 = start;
     //std::clock_t c_end = std::clock();
     double end = omp_get_wtime();
+    double err = 0.;
 
     double t = 0.0, t0, t1;
 
@@ -79,12 +89,11 @@ int main( int argc, char* argv[] )
           end = omp_get_wtime();
           //double time_elapsed_s = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
           //std::cout << "iter: " << i << " " << "CPI time used: " << time_elapsed_s << "ms" << std::endl;
-          std::vector<double> tke(order+1,0.0);
-          double tkeAna = 0.0;
-          sglbm.totalKineticEnergy(tke, tkeAna, count);
-          double err = std::abs((sglbm.mean(tke)-tkeAna) / tkeAna);
+          
+          err = calc_tke_error(sglbm, count);
+
           std::cout << "iter: " << i << " " << "CPI time used: " << end - start << "s" << "\t" << "TKE error " << err << std::endl;
-          //sglbm.output(dir, i);
+          sglbm.output(dir, i);
           //c_start = c_end;
           start = end;
           t = 0.0;
@@ -92,6 +101,11 @@ int main( int argc, char* argv[] )
       }
     }
     sglbm.output(dir, count);
+
+    end = omp_get_wtime();
+    err = calc_tke_error(sglbm, count);
+
+    std::cout << "total CPI time used: " << end - start_0 << "s" << "\t" << "TKE error " << err << std::endl;
 
 
     return 0;

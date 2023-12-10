@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <iomanip>
 
-class sglbm : public LegendrePoly {
+class sglbm{
 public:
   int N;
   double L;
@@ -33,6 +33,9 @@ public:
   std::string dir;
   std::string exm;
 
+  polynomial op;
+
+
   double cs2 = 1.0 / 3.0;
   std::vector<int> cx = { 0, 1, 0, -1, 0, 1, -1, -1, 1 };
   std::vector<int> cy = { 0, 0, 1, 0, -1, 1, 1, -1, -1 };
@@ -49,10 +52,11 @@ public:
   std::vector<std::vector<std::vector<std::vector<double>>>> F;
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
-  sglbm(std::string _dir, std::string _exm, int _nq, int _n, double _parameter1, double _parameter2) :LegendrePoly(_nq, _n, _parameter1, _parameter2)
+  sglbm(std::string _dir, std::string _exm, int _nq, int _n, double _parameter1, double _parameter2, int _polynomialType):op(_nq, _n, _parameter1, _parameter2, _polynomialType)
   {
     dir = _dir;
     exm = _exm;
+
   }
 
   std::vector<double> find_intersection(std::vector<double> center, double radius, std::vector<int> start_point, std::vector<int> end_point)
@@ -209,11 +213,11 @@ public:
       F[i].resize(ny);
       feq[i].resize(ny);
       for (int j = 0; j < ny; ++j) {
-        u[i][j].resize(order + 1);
-        v[i][j].resize(order + 1);
-        rho[i][j].resize(order + 1);
-        omega[i][j].resize(order + 1);
-        for (int alpha = 0; alpha < order + 1; ++alpha) {
+        u[i][j].resize(op.order + 1);
+        v[i][j].resize(op.order + 1);
+        rho[i][j].resize(op.order + 1);
+        omega[i][j].resize(op.order + 1);
+        for (int alpha = 0; alpha < op.order + 1; ++alpha) {
           u[i][j][alpha] = 0.0;
           v[i][j][alpha] = 0.0;
           rho[i][j][alpha] = 0.0;
@@ -224,10 +228,10 @@ public:
         F[i][j].resize(9);
         feq[i][j].resize(9);
         for (int k = 0; k < 9; ++k) {
-          f[i][j][k].resize(order + 1);
-          F[i][j][k].resize(order + 1);
-          feq[i][j][k].resize(order + 1);
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          f[i][j][k].resize(op.order + 1);
+          F[i][j][k].resize(op.order + 1);
+          feq[i][j][k].resize(op.order + 1);
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             f[i][j][k][alpha] = 0.0;
             F[i][j][k][alpha] = 0.0;
             feq[i][j][k][alpha] = 0.0;
@@ -237,14 +241,20 @@ public:
     }
 
 
-    std::vector<double> uChaos(order + 1, 0.0);
-    std::vector<double> vChaos(order + 1, 0.0);
-    std::vector<double> rChaos(order + 1, 0.0);
-    std::vector<double> omegaChaos(order + 1, 0.0);
+    std::vector<double> uChaos(op.order + 1, 0.0);
+    std::vector<double> vChaos(op.order + 1, 0.0);
+    std::vector<double> rChaos(op.order + 1, 0.0);
+    std::vector<double> omegaChaos(op.order + 1, 0.0);
     std::vector<double> chaos(2, 0.0);
     rChaos[0] = 1.0;
-    std::cout << "omega: " << 1.0 / (3 * physViscosity * parameter2 / conversionViscosity + 0.5) << std::endl;
-    convert2affinePCE(1.0 / (3 * physViscosity * parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * parameter1 / conversionViscosity + 0.5),chaos);
+    std::cout << "omega: " << 1.0 / (3 * physViscosity / conversionViscosity + 0.5) << std::endl;
+
+    if(op.polynomialType == 0) {
+      op.convert2affinePCE(1.0 / (3 * physViscosity * op.parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * op.parameter1 / conversionViscosity + 0.5),chaos);
+    }
+    else if (op.polynomialType == 1) {
+      op.convert2affinePCE((1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter1, (1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter2, chaos);
+    }
     
     if (exm == "tgv"){
       omegaChaos[0] = chaos[0];
@@ -261,7 +271,7 @@ public:
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         //TGV            
-        for (int alpha = 0; alpha < order + 1; ++alpha) {
+        for (int alpha = 0; alpha < op.order + 1; ++alpha) {
           //printf("i: %d, j: %d, alpha: %d, omp_get_thread_num: %d\n", i,j,alpha,omp_get_thread_num()); 
           if(exm == "tgv"){
               double x = i * dx;
@@ -288,38 +298,38 @@ public:
     }
 
 
-    std::vector<double> rRan(nq, 0.0);
-    std::vector<double> uRan(nq, 0.0);
-    std::vector<double> vRan(nq, 0.0);
+    std::vector<double> rRan(op.nq, 0.0);
+    std::vector<double> uRan(op.nq, 0.0);
+    std::vector<double> vRan(op.nq, 0.0);
 
-    std::vector<double> rSlice(order + 1, 0.0);
-    std::vector<double> uSlice(order + 1, 0.0);
-    std::vector<double> vSlice(order + 1, 0.0);
+    //std::vector<double> rSlice(op.order + 1, 0.0);
+    //std::vector<double> uSlice(op.order + 1, 0.0);
+    //std::vector<double> vSlice(op.order + 1, 0.0);
 
-    std::vector<double> feqRan(nq, 0.0);
-    std::vector<double> feqSlice(order + 1, 0.0);
+    std::vector<double> feqRan(op.nq, 0.0);
+    std::vector<double> feqSlice(op.order + 1, 0.0);
 
     //#pragma omp parallel for num_threads(4)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
-        for (int alpha = 0; alpha < order + 1; ++alpha) {
+        /*for (int alpha = 0; alpha < op.order + 1; ++alpha) {
           rSlice[alpha] = rho[i][j][alpha];
           uSlice[alpha] = u[i][j][alpha];
           vSlice[alpha] = v[i][j][alpha];
-        }
+        }*/
 
-        evaluatePCE(rSlice, rRan);
-        evaluatePCE(uSlice, uRan);
-        evaluatePCE(vSlice, vRan);
+        op.evaluatePCE(rho[i][j], rRan);
+        op.evaluatePCE(u[i][j], uRan);
+        op.evaluatePCE(v[i][j], vRan);
 
         for (int k = 0; k < 9; ++k) {
 
-          for (int sample = 0; sample < nq; sample++) {
+          for (int sample = 0; sample < op.nq; sample++) {
             feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
           }
 
-          ran2chaos(feqRan, feqSlice);
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          op.ran2chaos(feqRan, feqSlice);
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             feq[i][j][k][alpha] = feqSlice[alpha];
             //std::cout << feqSlice[alpha] << std::endl;
             f[i][j][k][alpha] = feqSlice[alpha];
@@ -340,9 +350,9 @@ public:
     uRan.clear();
     vRan.clear();
     feqRan.clear();
-    rSlice.clear();
-    uSlice.clear();
-    vSlice.clear();
+    //rSlice.clear();
+    //uSlice.clear();
+    //vSlice.clear();
     feqSlice.clear();
     //std::cout << "clear data" << std::endl;
 
@@ -351,24 +361,24 @@ public:
     void collision()
   {
 
-    std::vector<double> omegaSlice(order + 1, 0.0);
-    std::vector<double> fSlice(order + 1, 0.0);
-    std::vector<double> feqSlice(order + 1, 0.0);
-    std::vector<double> QSlice(order + 1, 0.0);
+    //std::vector<double> omegaSlice(op.order + 1, 0.0);
+    //std::vector<double> fSlice(op.order + 1, 0.0);
+    //std::vector<double> feqSlice(op.order + 1, 0.0);
+    std::vector<double> QSlice(op.order + 1, 0.0);
     //std::cout << "collision start" << std::endl;
 #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          /*for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             omegaSlice[alpha] = omega[i][j][alpha];
             fSlice[alpha] = f[i][j][k][alpha];
             feqSlice[alpha] = feq[i][j][k][alpha];
             //std::cout << feq[i][j][k][alpha] << std::endl;
-          }
-          collisionTerm(fSlice, feqSlice, omegaSlice, QSlice);
+          }*/
+          collisionTerm(f[i][j][k], feq[i][j][k], omega[i][j], QSlice);
 
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             F[i][j][k][alpha] = f[i][j][k][alpha] + QSlice[alpha];
             //std::cout << F[i][j][k][alpha] << std::endl;
           }
@@ -377,27 +387,27 @@ public:
     }
     //std::cout << "collision finished" << std::endl;
 
-    omegaSlice.clear();
-    fSlice.clear();
-    feqSlice.clear();
+    //omegaSlice.clear();
+    //fSlice.clear();
+    //feqSlice.clear();
     QSlice.clear();
   }
 
   void collisionTerm(std::vector<double> _f, std::vector<double> _feq, std::vector<double> _omega, std::vector<double>& Q)
   {
 
-    for (int i = 0; i < order + 1; ++i) {
+    for (int i = 0; i < op.order + 1; ++i) {
       double sum1 = 0.0;
       double sum2 = 0.0;
 
-      for (int j = 0; j < order + 1; ++j) {
-        for (int k = 0; k < order + 1; ++k) {
-          sum1 += _omega[j] * _feq[k] * t3Product[j][k][i];
-          sum2 += _omega[j] * _f[k] * t3Product[j][k][i];
+      for (int j = 0; j < op.order + 1; ++j) {
+        for (int k = 0; k < op.order + 1; ++k) {
+          sum1 += _omega[j] * _feq[k] * op.t3Product[j][k][i];
+          sum2 += _omega[j] * _f[k] * op.t3Product[j][k][i];
         }
       }
 
-      Q[i] = (sum1 - sum2) / t2Product[i];
+      Q[i] = (sum1 - sum2) / op.t2Product[i];
     }
   }
 
@@ -418,7 +428,7 @@ public:
         for (int k = 0; k < 9; ++k) {
           int ii = (i + nx + cx[k]) % (nx);
           int jj = (j + ny + cy[k]) % (ny);
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             f[ii][jj][k][alpha] = F[i][j][k][alpha];
           }
         }
@@ -432,14 +442,14 @@ public:
   {
     //std::cout<<"max threads: " << nProcessors<<std::endl;
     //omp_set_dynamic(0);     // Explicitly disable dynamic teams
-    std::vector<double> rRan(nq, 0.0);
-    std::vector<double> uRan(nq, 0.0);
-    std::vector<double> vRan(nq, 0.0);
-    std::vector<double> ruRan(nq, 0.0);
-    std::vector<double> rvRan(nq, 0.0);
+    std::vector<double> rRan(op.nq, 0.0);
+    std::vector<double> uRan(op.nq, 0.0);
+    std::vector<double> vRan(op.nq, 0.0);
+    std::vector<double> ruRan(op.nq, 0.0);
+    std::vector<double> rvRan(op.nq, 0.0);
 
-    std::vector<double> fSlice(order + 1, 0.0);
-    std::vector<double> feqSlice(order + 1, 0.0);
+    std::vector<double> fSlice(op.order + 1, 0.0);
+    std::vector<double> feqSlice(op.order + 1, 0.0);
 
 #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
@@ -448,44 +458,44 @@ public:
         //printf("i = %d, j= %d, threadId = %d \n", i, j, omp_get_thread_num());
 
         //printf("i = %d, j= %d, threadId = %d \n", i, j, omp_get_thread_num());        
-        std::vector<double> rSlice(order + 1, 0.0);
-        for (int alpha = 0; alpha < order + 1; ++alpha) {
+        std::vector<double> rSlice(op.order + 1, 0.0);
+        for (int alpha = 0; alpha < op.order + 1; ++alpha) {
           for (int k = 0; k < 9; ++k) {
             rSlice[alpha] += f[i][j][k][alpha];
           }
           rho[i][j][alpha] = rSlice[alpha];
         }
-        evaluatePCE(rSlice, rRan);
+        op.evaluatePCE(rSlice, rRan);
         rSlice.clear();
 
         if (material[i][j] == 1) {
           //std::cout << "check" << std::endl;
-          std::vector<double> ruSlice(order + 1, 0.0);
-          std::vector<double> rvSlice(order + 1, 0.0);
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          std::vector<double> ruSlice(op.order + 1, 0.0);
+          std::vector<double> rvSlice(op.order + 1, 0.0);
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             for (int k = 0; k < 9; ++k) {
               ruSlice[alpha] += f[i][j][k][alpha] * cx[k];
               rvSlice[alpha] += f[i][j][k][alpha] * cy[k];
             }
           }
           //std::cout << "check" << std::endl;
-          evaluatePCE(ruSlice, ruRan);
-          evaluatePCE(rvSlice, rvRan);
+          op.evaluatePCE(ruSlice, ruRan);
+          op.evaluatePCE(rvSlice, rvRan);
 
           ruSlice.clear();
           rvSlice.clear();
 
-          for (int sample = 0; sample < nq; sample++) {
+          for (int sample = 0; sample < op.nq; sample++) {
             uRan[sample] = ruRan[sample] / rRan[sample];
             vRan[sample] = rvRan[sample] / rRan[sample];
           }
-          std::vector<double> uSlice(order + 1, 0.0);
-          std::vector<double> vSlice(order + 1, 0.0);
+          std::vector<double> uSlice(op.order + 1, 0.0);
+          std::vector<double> vSlice(op.order + 1, 0.0);
 
-          ran2chaos(uRan, uSlice);
-          ran2chaos(vRan, vSlice);
+          op.ran2chaos(uRan, uSlice);
+          op.ran2chaos(vRan, vSlice);
 
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             u[i][j][alpha] = uSlice[alpha];
             v[i][j][alpha] = vSlice[alpha];
           }
@@ -494,42 +504,41 @@ public:
         }
         else if (material[i][j] == 2)
         {
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             u[i][j][alpha] = 0.0;
             v[i][j][alpha] = 0.0;
           }
-          for (int sample = 0; sample < nq; sample++) {
+          for (int sample = 0; sample < op.nq; sample++) {
             uRan[sample] = 0.0;
             vRan[sample] = 0.0;
           }
         }
         else if (material[i][j] == 3){
-          std::vector<double> uSlice(order + 1, 0.0);
-          std::vector<double> vSlice(order + 1, 0.0);
+          std::vector<double> uSlice(op.order + 1, 0.0);
+          std::vector<double> vSlice(op.order + 1, 0.0);
           std::vector<double> chaos(2,0.0);
-          convert2affinePCE(parameter1*u0, parameter2*u0,chaos);
+          op.convert2affinePCE(op.parameter1*u0, op.parameter2*u0,chaos);
           uSlice[0] = chaos[0];
           uSlice[1] = chaos[1];
-          evaluatePCE(uSlice, uRan);
-          std::vector<double> empty(nq, 0.0);
+          op.evaluatePCE(uSlice, uRan);
+          std::vector<double> empty(op.nq, 0.0);
           vRan.swap(empty);
 
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             if (alpha == 0 || alpha == 1)
-              u[i][j][alpha] = 
             u[i][j][alpha] = 0.0;
             v[i][j][alpha] = 0.0;
           }
         }
 
         for (int k = 0; k < 9; ++k) {
-          std::vector<double> feqRan(nq, 0.0);
-          for (int sample = 0; sample < nq; sample++) {
+          std::vector<double> feqRan(op.nq, 0.0);
+          for (int sample = 0; sample < op.nq; sample++) {
             feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
           }
 
-          ran2chaos(feqRan, feqSlice);
-          for (int alpha = 0; alpha < order + 1; ++alpha) {
+          op.ran2chaos(feqRan, feqSlice);
+          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
             feq[i][j][k][alpha] = feqSlice[alpha];
           }
           feqRan.clear();
@@ -555,15 +564,15 @@ public:
       for (int j = 0; j < ny; ++j) {
         double x = i * dx;
         double y = j * dy;
-        std::vector<double> rSlice(order + 1, 0.0);
-        std::vector<double> uSlice(order + 1, 0.0);
-        std::vector<double> vSlice(order + 1, 0.0);
-        for (int alpha = 0; alpha < order + 1; ++alpha) {
+        std::vector<double> rSlice(op.order + 1, 0.0);
+        std::vector<double> uSlice(op.order + 1, 0.0);
+        std::vector<double> vSlice(op.order + 1, 0.0);
+        for (int alpha = 0; alpha < op.order + 1; ++alpha) {
           rSlice[alpha] = rho[i][j][alpha];
           uSlice[alpha] = u[i][j][alpha];
           vSlice[alpha] = v[i][j][alpha];
         }
-        outputFile << x << "\t" << y << "\t" << mean(rSlice) << "\t" << mean(uSlice) * conversionVelocity << "\t" << mean(vSlice) * conversionVelocity << "\t" << std(rSlice) << "\t" << std(uSlice) * conversionVelocity << "\t" << std(vSlice) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
+        outputFile << x << "\t" << y << "\t" << op.mean(rho[i][j]) << "\t" << op.mean(u[i][j]) * conversionVelocity << "\t" << op.mean(v[i][j]) * conversionVelocity << "\t" << op.std(rSlice) << "\t" << op.std(uSlice) * conversionVelocity << "\t" << op.std(vSlice) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
 
         rSlice.clear();
         uSlice.clear();
@@ -575,12 +584,12 @@ public:
     if (exm == "tgv"){
       std::string filenameTKE = dir + "final/tke.dat";
       std::ofstream outputFileTKE(filenameTKE);
-      std::vector<double> tke(order+1,0.0);
+      std::vector<double> tke(op.order+1,0.0);
       double tkeAna = 0.0;
       totalKineticEnergy(tke, tkeAna, iter+1);
 
       outputFileTKE.precision(20);  
-      outputFileTKE << mean(tke) << "\t" << std(tke);
+      outputFileTKE << op.mean(tke) << "\t" << op.std(tke) << "\t" << tkeAna;
       outputFileTKE.close();
       tke.clear();
     }
@@ -593,13 +602,13 @@ public:
       if (exm == "tgv"){
         idx = nx / 2 + 1;
       }
-      std::vector<double> uSlice(order + 1, 0.0);
-      for (int alpha = 0; alpha < order + 1; ++alpha) {
+      std::vector<double> uSlice(op.order + 1, 0.0);
+      for (int alpha = 0; alpha < op.order + 1; ++alpha) {
         uSlice[alpha] = u[idx][j][alpha];
       }
 
       outputFileU.precision(20);  
-      outputFileU << j * dy << "\t" << mean(uSlice) * conversionVelocity << "\t" << std(uSlice) * conversionVelocity ;
+      outputFileU << j * dy << "\t" << op.mean(uSlice) * conversionVelocity << "\t" << op.std(uSlice) * conversionVelocity;
 
       if (exm == "tgv"){
         double x = idx * dx;
@@ -623,14 +632,14 @@ public:
       if (exm == "tgv"){
         idy = ny / 2 + 1;
       }
-      std::vector<double> vSlice(order + 1, 0.0);
-      for (int alpha = 0; alpha < order + 1; ++alpha) {
+      std::vector<double> vSlice(op.order + 1, 0.0);
+      for (int alpha = 0; alpha < op.order + 1; ++alpha) {
         vSlice[alpha] = v[i][idy][alpha];
       }
 
 
       outputFileV.precision(20);  
-      outputFileV << i * dx << "\t" << mean(vSlice) * conversionVelocity << "\t" << std(vSlice) * conversionVelocity;
+      outputFileV << i * dx << "\t" << op.mean(vSlice) * conversionVelocity << "\t" << op.std(vSlice) * conversionVelocity;
 
       if (exm == "tgv"){
         double x = i * dx;
@@ -649,21 +658,21 @@ public:
 
     void totalKineticEnergy(std::vector<double>&tke, double&tkeAna, int t)
     {
-      std::vector<double> u2(order+1, 0.0);
-      std::vector<double> v2(order+1, 0.0);
-      std::vector<double> uSlice(order+1, 0.0);
-      std::vector<double> vSlice(order + 1, 0.0);
+      std::vector<double> u2(op.order+1, 0.0);
+      std::vector<double> v2(op.order+1, 0.0);
+      std::vector<double> uSlice(op.order+1, 0.0);
+      std::vector<double> vSlice(op.order + 1, 0.0);
         for (int i = 0; i < nx; ++i){
             for (int j = 0; j < ny; ++j){
-                for (int alpha = 0; alpha < order + 1; ++alpha) {
+                for (int alpha = 0; alpha < op.order + 1; ++alpha) {
                     uSlice[alpha] = u[i][j][alpha];
                     vSlice[alpha] = v[i][j][alpha];
                 }
 
-                chaos_product(uSlice, uSlice, u2);
-                chaos_product(vSlice, vSlice, v2);
+                op.chaos_product(uSlice, uSlice, u2);
+                op.chaos_product(vSlice, vSlice, v2);
 
-                for (int alpha = 0; alpha < order + 1; ++alpha) {
+                for (int alpha = 0; alpha < op.order + 1; ++alpha) {
                     tke[alpha] += ((u2[alpha] + v2[alpha]) *  2 / (nx*ny*u0*u0));
                 }
                 
@@ -685,17 +694,17 @@ public:
 
     void boundary()
     {
-      std::vector<double> rRan(nq, 0.0);
-      std::vector<double> uRan(nq, 0.0);
-      std::vector<double> vRan(nq, 0.0);
-      std::vector<double> rSlice(order+1, 0.0);
-      std::vector<double> uSlice(order+1, 0.0);
-      std::vector<double> feqSlice(order+1, 0.0);
+      std::vector<double> rRan(op.nq, 0.0);
+      std::vector<double> uRan(op.nq, 0.0);
+      std::vector<double> vRan(op.nq, 0.0);
+      std::vector<double> rSlice(op.order+1, 0.0);
+      std::vector<double> uSlice(op.order+1, 0.0);
+      std::vector<double> feqSlice(op.order+1, 0.0);
       std::vector<double> chaos(2,0.0);
-      convert2affinePCE(parameter1*u0, parameter2*u0,chaos);
+      op.convert2affinePCE(op.parameter1*u0, op.parameter2*u0,chaos);
       uSlice[0] = chaos[0];
       uSlice[1] = chaos[1];
-      evaluatePCE(uSlice, uRan);
+      op.evaluatePCE(uSlice, uRan);
 
       #pragma omp for collapse(2)
       for (int i = 0; i < nx; ++i){
@@ -706,7 +715,7 @@ public:
               int new_j = j+cy[k];
               if ((new_i!=-1) && (new_i!=nx) && (new_j!=0) && (new_j!=ny)){
                 if (material[new_i][new_j] == 1){
-                  for (int alpha = 0; alpha < order+1; ++alpha){
+                  for (int alpha = 0; alpha < op.order+1; ++alpha){
                     F[i][j][k][alpha] = F[new_i][new_j][kinv[k]][alpha];
                   }
                 }
@@ -714,21 +723,21 @@ public:
             }
           }
           else if (material[i][j] == 3){
-            for (int alpha = 0; alpha < order + 1; ++alpha) {
+            for (int alpha = 0; alpha < op.order + 1; ++alpha) {
               rSlice[alpha] = rho[i][j-1][alpha];
               //uSlice[alpha] = u[i][j][alpha];
               //vSlice[alpha] = v[i][j][alpha];
             }
-            evaluatePCE(rSlice, rRan);
+            op.evaluatePCE(rSlice, rRan);
 
             for (int k = 0; k < 9; ++k) {
-              std::vector<double> feqRan(nq, 0.0);
-              for (int sample = 0; sample < nq; sample++) {
+              std::vector<double> feqRan(op.nq, 0.0);
+              for (int sample = 0; sample < op.nq; sample++) {
                 feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
               }
 
-              ran2chaos(feqRan, feqSlice);
-              for (int alpha = 0; alpha < order + 1; ++alpha) {
+              op.ran2chaos(feqRan, feqSlice);
+              for (int alpha = 0; alpha < op.order + 1; ++alpha) {
                 F[i][j][k][alpha] = feqSlice[alpha] + F[i][j-1][k][alpha] - feq[i][j-1][k][alpha];
               }
             }
