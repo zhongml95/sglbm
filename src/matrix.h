@@ -41,7 +41,7 @@ void normalize(std::vector<double>& v) {
 }
 
 // Function to perform Gram-Schmidt orthogonalization
-void gramSchmidt(std::vector<std::vector<double>>& vectors) {
+std::vector<std::vector<double>> gramSchmidt(std::vector<std::vector<double>>& vectors) {
     size_t n = vectors.size();
     
     // Initialize the orthogonalized vectors
@@ -55,13 +55,16 @@ void gramSchmidt(std::vector<std::vector<double>>& vectors) {
         }
         normalize(orthogonalized[i]);
     }
+
+    return orthogonalized;
     
     // Print the orthogonalized vectors
-    for (size_t i = 0; i < n; ++i) {
+    //vectors.swap(orthogonalized);
+    /*for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < vectors[i].size(); ++j) {
             vectors[i][j] = orthogonalized[i][j];
         }
-    }
+    }*/
 }
 
 

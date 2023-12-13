@@ -311,7 +311,7 @@ public:
 
         //normalized the coefficients
         std::cout << "construct gpc" << std::endl;
-        /*for (int i = 0; i < nq+1; ++i)
+        for (int i = 0; i < nq+1; ++i)
         {
             std::vector<double> coeffs_i(nq+1,0.0);
             coeffs_i = Legendre_coefficients(i);
@@ -323,7 +323,7 @@ public:
                 //std::cout << polynomialCoeffs[i][j] << "\t";
             }
             //std::cout << std::endl;
-        }*/
+        }
         std::cout << "quadrature points" << std::endl;
         quadrature_rule();
         
@@ -421,18 +421,18 @@ public:
             householderQR(J, Q, R);
             J = matrixMultiplication(R,Q);
             iter++;
+            //std::cout << iter << std::endl;
         }
 
-        
         std::cout << "points" << std::endl;
         for (int i = 0; i < nq; i++) {
             points[i] = R[i][i];
         }
         
         std::sort(points.begin(), points.end());
-        //for (int i = 0; i < nq; i++) {
-        //    std::cout << points[i] << "\t";
-        //}
+        for (int i = 0; i < nq; i++) {
+            std::cout << points[i] << "\t";
+        }
 
         
         std::cout << std::endl;

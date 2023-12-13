@@ -14,7 +14,7 @@ double calc_tke_error(sglbm sglbm, int count) {
 int main( int argc, char* argv[] )
 {
     unsigned int order = 4;
-    unsigned int nq = 100;
+    unsigned int nq = 2*order+1;
     int polynomialType = 0;
     int resolution = 32;
     double parameter1 = 0.8;//0.8
@@ -47,7 +47,7 @@ int main( int argc, char* argv[] )
     std::cout << "finish mkdir" << std::endl;
 
 
-    sglbm sglbm(dir, "tgv", nq, order, parameter1,parameter2, polynomialType);
+    sglbm sglbm(dir, "tgv", nq, order, parameter1, parameter2, polynomialType);
     sglbm.setGeometry(L,resolution,lx,ly,material);
     sglbm.setFluid(physVelocity,nu,tau);
     sglbm.initialize();
@@ -67,7 +67,7 @@ int main( int argc, char* argv[] )
 
     double t = 0.0, t0, t1;
 
-    sglbm.output(dir, 0);
+    sglbm.output(dir, 0, 0);
 
 
     size_t cores = omp_get_num_procs();
@@ -81,7 +81,8 @@ int main( int argc, char* argv[] )
       //sglbm.boundary();
       sglbm.streaming();
       sglbm.reconstruction(); 
-#pragma omp single
+
+/*#pragma omp single
       {
         count = i;
         if (i % 1000 == 0) {
@@ -93,16 +94,17 @@ int main( int argc, char* argv[] )
           err = calc_tke_error(sglbm, count);
 
           std::cout << "iter: " << i << " " << "CPI time used: " << end - start << "s" << "\t" << "TKE error " << err << std::endl;
-          sglbm.output(dir, i);
+          sglbm.output(dir, i, end - start);
           //c_start = c_end;
           start = end;
           t = 0.0;
         }
-      }
+      }*/
     }
-    sglbm.output(dir, count);
-
+    count = int(td * 0.5) - 1;
     end = omp_get_wtime();
+    sglbm.output(dir, count, end - start_0);
+
     err = calc_tke_error(sglbm, count);
 
     std::cout << "total CPI time used: " << end - start_0 << "s" << "\t" << "TKE error " << err << std::endl;

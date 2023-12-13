@@ -548,7 +548,7 @@ public:
 
   }
 
-  void output(std::string dir, int iter)
+  void output(std::string dir, int iter, double total_computational_time)
   {
     std::string filename = dir + std::to_string(iter) + ".dat";
     std::ofstream outputFile(filename);
@@ -589,7 +589,7 @@ public:
       totalKineticEnergy(tke, tkeAna, iter+1);
 
       outputFileTKE.precision(20);  
-      outputFileTKE << op.mean(tke) << "\t" << op.std(tke) << "\t" << tkeAna;
+      outputFileTKE << op.mean(tke) << "\t" << op.std(tke) << "\t" << tkeAna << "\t" << total_computational_time;
       outputFileTKE.close();
       tke.clear();
     }
