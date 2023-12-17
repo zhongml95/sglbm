@@ -13,8 +13,8 @@ double calc_tke_error(sglbm sglbm, int count) {
 
 int main( int argc, char* argv[] )
 {
-    unsigned int order = 4;
-    unsigned int nq = 2*order+1;
+    unsigned int order = 9;
+    unsigned int nq = 2000;
     int polynomialType = 0;
     int resolution = 32;
     double parameter1 = 0.8;//0.8
