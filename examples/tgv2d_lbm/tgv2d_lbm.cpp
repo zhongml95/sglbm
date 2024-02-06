@@ -1,8 +1,6 @@
-#include <iostream>
 #include <cmath>
 #include <random>
-//#include "src/polynomial.h"
-#include "src/lbm.h"
+#include "../../src/lbm.h"
 
 double calc_tke_error(lbm lbm, int count) {
   
@@ -61,13 +59,11 @@ int main( int argc, char* argv[] )
   double physViscosity = physVelocity*L/Re;
   double tau = 3 * physViscosity + 0.5;
 
-  double parameter1 = 0.8 * physViscosity;//0.8
-  double parameter2 = 1.2 * physViscosity;//1.2
 
   std::vector<std::vector<int>> material(resolution+1, std::vector<int>(resolution+1, 1));
     
-  std::string dir    = "./data/tgv/t5/MC" + std::to_string(resolution) + "/";
-  std::string dirAna = "./data/tgv/t5/MC" + std::to_string(resolution) + "/final/";
+  std::string dir    = "/home/zhongml95/sglbm/cluster/LBM" + std::to_string(resolution) + "/";
+  std::string dirAna = "/home/zhongml95/sglbm/cluster/LBM" + std::to_string(resolution) + "/final/";
 
   std::string command;
   int a;
@@ -81,7 +77,6 @@ int main( int argc, char* argv[] )
   std::cout << dir << std::endl;
   std::cout << "finish mkdir" << std::endl;
 
-  int total_nq = 100;
   lbm lbm(dir, "tgv");
   lbm.setGeometry(L,resolution,lx,ly,material);
   size_t cores = omp_get_num_procs();
@@ -89,27 +84,23 @@ int main( int argc, char* argv[] )
   omp_set_num_threads(cores);
   std::cout << "num Threads: " << cores << std::endl;
   
-  // Seed the random number generator with the current time
-  std::srand(static_cast<unsigned>(std::time(nullptr)));
-
   double start_mc = omp_get_wtime();
-  for (int n = 0; n < total_nq; ++n) {  
-    double random_physViscosity = parameter1 + static_cast<double>(std::rand()) / RAND_MAX * (parameter2 - parameter1);
-    lbm.setFluid(physVelocity, random_physViscosity, tau);
-    lbm.initialize();
-    //sglbm.iteration();
-    std::cout << "start iteration" << std::endl;
-    double td = 1.0 / (lbm.physViscosity * (dx * dx + dy * dy));
-    std::cout << "td: " << td << std::endl;
-    int count = 0;
-    //std::clock_t c_start = std::clock();
-    double start = omp_get_wtime();
-    double start_0 = start;
-    //std::clock_t c_end = std::clock();
-    double end = omp_get_wtime();
-    double err = 0.;
+  
+  lbm.setFluid(physVelocity, physViscosity, tau);
+  lbm.initialize();
+    
+  std::cout << "start iteration" << std::endl;
+  double td = 1.0 / (lbm.physViscosity * (dx * dx + dy * dy));
+  std::cout << "td: " << td << std::endl;
+  int count = 0;
+  //std::clock_t c_start = std::clock();
+  double start = omp_get_wtime();
+  double start_0 = start;
+  //std::clock_t c_end = std::clock();
+  double end = omp_get_wtime();
+  double err = 0.;
 
-    double t = 0.0, t0, t1;
+  double t = 0.0, t0, t1;
     
   #pragma omp parallel 
     for (int i = 1; i < int(td * 0.5); ++i) {
@@ -119,20 +110,12 @@ int main( int argc, char* argv[] )
       lbm.streaming();
       lbm.reconstruction(); 
   
-      }
-      //lbm.output(dir, int(td * 0.5) - 1);
-      save_velocity_field(dir, resolution, resolution, lbm.u, lbm.v, n);
+    }
 
-      end = omp_get_wtime();
-      err = calc_tke_error(lbm, int(td * 0.5) - 1);
+  end = omp_get_wtime();
+  lbm.output(dir, int(td * 0.5) - 1, end - start_0);  
 
-      std::cout << "total CPI time used: " << end - start_0 << "s" << "\t" << "TKE error " << err << std::endl;
-  }
+  std::cout << "total MCS time used: " <<  end - start_0 << std::endl;
 
-  double end_mc = omp_get_wtime();
-
-  std::cout << "total MCS time used: " <<  end_mc - start_mc << std::endl;
-
-
-    return 0;
+  return 0;
 }

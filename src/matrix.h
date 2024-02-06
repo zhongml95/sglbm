@@ -1,8 +1,9 @@
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
 #include <iostream>
 #include <cmath>
 #include <vector>
 #include <iomanip>
-
 
 
 
@@ -40,6 +41,15 @@ void normalize(std::vector<double>& v) {
     }
 }
 
+<<<<<<< HEAD
+// Function to get the colomn of a matrix
+std::vector<double> getColomn(std::vector<std::vector<double>> matrix, int j) {
+    std::vector<double> colomn(matrix[0].size(), 0.0);
+    for (int i = 0; i < matrix.size(); ++i) {
+        colomn[i] = matrix[i][j];
+    }
+    return colomn;
+=======
 // Function to perform Gram-Schmidt orthogonalization
 std::vector<std::vector<double>> gramSchmidt(std::vector<std::vector<double>>& vectors) {
     size_t n = vectors.size();
@@ -65,9 +75,8 @@ std::vector<std::vector<double>> gramSchmidt(std::vector<std::vector<double>>& v
             vectors[i][j] = orthogonalized[i][j];
         }
     }*/
+>>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
 }
-
-
 
 std::vector<std::vector<double>> generateIdentityMatrix(int n) {
     std::vector<std::vector<double>> identityMatrix(n, std::vector<double>(n, 0.0));
@@ -143,15 +152,12 @@ std::vector<std::vector<double>> transposeMatrix(const std::vector<std::vector<d
     return result;
 }
 
-
-
-
-
 // Function to perform Householder QR decomposition
 void householderQR(std::vector<std::vector<double>>& A, std::vector<std::vector<double>>& Q, std::vector<std::vector<double>>& R) {
     int m = A.size(); // Number of rows
     int n = (A.empty() ? 0 : A[0].size()); // Number of columns (assuming all rows have the same number of columns)
-    R = copyMatrix(A);
+    //R = copyMatrix(A);
+    R = A;
     Q = generateIdentityMatrix(m);
     for (int k = 0; k < n; ++k) {
         std::vector<double> x(m - k, 0.0);
@@ -184,63 +190,21 @@ void householderQR(std::vector<std::vector<double>>& A, std::vector<std::vector<
         // Update Q with Householder transformation
         Q = matrixMultiplication(Q, transposeMatrix(H));
     }
-
-    //std::vector<std::vector<double>> H_1 = generateIdentityMatrix(m);
-    //H_1[m-1][m-1] = -1;
-    
-    // Update R with Householder transformation
-    //R = matrixMultiplication(H_1, R);
-
-        // Update Q with Householder transformation
-    //Q = matrixMultiplication(Q, transposeMatrix(H_1));
 }
 
 // Function to construct the Jacobi matrix for Gaussian-Hermite quadrature
 std::vector<std::vector<double>> constructJacobiMatrix_Hermite(int n) {
-if (n <= 1) {
+    if (n <= 1) {
         throw std::invalid_argument("The order (n) must be greater than 1.");
     }
 
     std::vector<std::vector<double>> J(n, std::vector<double>(n, 0.0));
 
-    // Set the values for the first two diagonals
-    //J[0][1] = std::sqrt(0.5);
-    //J[1][0] = std::sqrt(0.5);
-
     // Calculate the rest of the matrix
     for (int i = 1; i < n; ++i) {
-        //if (i == 1) {
-        //    J[i][i - 1] = std::sqrt(std::sqrt(M_PI));
-        //}
-        //else {
-            J[i][i - 1] = std::sqrt(i);
-        //}
+        J[i][i - 1] = std::sqrt(i);
         J[i - 1][i] = J[i][i - 1];
     }
-
-    /*double mu = 0.0;
-
-    for (int i = 1; i < n; ++i) {
-        if (i == 1) {
-            J[i][i - 1] = std::tgamma(mu+0.5);
-            std::cout << std::tgamma(mu+0.5) << std::endl;
-        }
-        else if ((i-1) % 2 == 0) {
-            J[i][i - 1] = 0.5 * (i-1);
-        }
-        else if ((i-1) % 2 != 0) {
-            J[i][i - 1] = 0.5 * (i-1) + mu;
-        }
-
-        J[i - 1][i] = J[i][i - 1];
-    }*/
-
-    /*for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            std::cout << J[i][j] << "\t";
-        }
-        std::cout << std::endl;
-    }*/
 
     return J;
 }
@@ -254,6 +218,37 @@ std::vector<std::vector<double>> constructJacobiMatrix_Legendre(int n) {
         J[i - 1][i] = J[i][i - 1];
     }
 
-
     return J;
+}
+
+// Function to compute the Frobenius norm of a matrix
+double frobeniusNorm(const std::vector<std::vector<double>>& matrix) {
+    double sum = 0.0;
+    for (const auto& row : matrix) {
+        for (double val : row) {
+            sum += val * val;
+        }
+    }
+    return std::sqrt(sum);
+}
+
+// Function to check if matrix A is converging to matrix B
+bool isConverging(const std::vector<std::vector<double>>& A, const std::vector<std::vector<double>>& B, double& former_norm, double tolerance) {
+    // Ensure A and B are the same size
+    if (A.size() != B.size() || A[0].size() != B[0].size()) {
+        throw std::invalid_argument("Matrices must be the same size");
+    }
+
+    std::vector<std::vector<double>> diff(A.size(), std::vector<double>(A[0].size()));
+    for (size_t i = 0; i < A.size(); ++i) {
+        for (size_t j = 0; j < A[0].size(); ++j) {
+            diff[i][j] = A[i][j] - B[i][j];
+        }
+    }
+
+    double norm = frobeniusNorm(diff);
+    bool converge = (std::fabs(norm-former_norm)/former_norm) <= tolerance;
+    //std::cout << norm << std::endl;
+    former_norm = norm;
+    return converge;
 }

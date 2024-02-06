@@ -1,7 +1,7 @@
 #ifndef SGLBM_H
 #define SGLBM_H
+//#include "polynomial.h"
 #include "polynomial.h"
-#include <iostream>
 #include <fstream>
 #include <ctime>
 #include <omp.h>
@@ -42,6 +42,28 @@ public:
   std::vector<double> w = { 4.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0 };
   std::vector<int> kinv = { 0, 3, 4, 1, 2, 7, 8, 5, 6 };
 
+  std::vector<double> conversionViscosityChaos;
+  std::vector<double> conversionVelocityChaos;
+  std::vector<double> conversionDensityChaos;
+  std::vector<double> conversionMassChaos;
+  std::vector<double> conversionForceChaos;
+  std::vector<double> ReChaos;
+  std::vector<double> u0Chaos;
+  std::vector<double> dtChaos;
+  std::vector<double> tauChaos;
+
+  std::vector<double> conversionViscosityRan;
+  std::vector<double> conversionVelocityRan;
+  std::vector<double> conversionDensityRan;
+  std::vector<double> conversionMassRan;
+  std::vector<double> conversionForceRan;
+  std::vector<double> ReRan;
+  std::vector<double> u0Ran;
+  std::vector<double> dtRan;
+  std::vector<double> tauRan;
+
+  
+
   std::vector<std::vector<int>> material;
   std::vector<std::vector<std::vector<double>>> bouzidiQ;
   std::vector<std::vector<std::vector<double>>> u;
@@ -52,12 +74,12 @@ public:
   std::vector<std::vector<std::vector<std::vector<double>>>> F;
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
-  sglbm(std::string _dir, std::string _exm, int _nq, int _n, double _parameter1, double _parameter2, int _polynomialType):op(_nq, _n, _parameter1, _parameter2, _polynomialType)
-  {
-    dir = _dir;
-    exm = _exm;
-
-  }
+    sglbm(std::string _dir, std::string _exm, const Parameters& params)
+        : op(params.nq, params.order, params.parameter1, params.parameter2, params.polynomialType, params.points_weights_method) 
+    {
+        dir = _dir;
+        exm = _exm;
+    }
 
   std::vector<double> find_intersection(std::vector<double> center, double radius, std::vector<int> start_point, std::vector<int> end_point)
   {
@@ -240,29 +262,117 @@ public:
       }
     }
 
+    conversionViscosityChaos.resize(op.order + 1);
+    conversionVelocityChaos.resize(op.order + 1);
+    conversionDensityChaos.resize(op.order + 1);
+    conversionMassChaos.resize(op.order + 1);
+    conversionForceChaos.resize(op.order + 1);
+    ReChaos.resize(op.order + 1);
+    u0Chaos.resize(op.order + 1);
+    dtChaos.resize(op.order + 1);
+    tauChaos.resize(op.order + 1);
+
+    conversionViscosityRan.resize(op.nq + 1);
+    conversionVelocityRan.resize(op.nq + 1);
+    conversionDensityRan.resize(op.nq + 1);
+    conversionMassRan.resize(op.nq + 1);
+    conversionForceRan.resize(op.nq + 1);
+    ReRan.resize(op.nq + 1);
+    u0Ran.resize(op.nq + 1);
+    dtRan.resize(op.nq + 1);
+    tauRan.resize(op.nq + 1);
+
 
     std::vector<double> uChaos(op.order + 1, 0.0);
     std::vector<double> vChaos(op.order + 1, 0.0);
     std::vector<double> rChaos(op.order + 1, 0.0);
     std::vector<double> omegaChaos(op.order + 1, 0.0);
+    std::vector<double> physViscosityChaos(op.order + 1, 0.0);
     std::vector<double> chaos(2, 0.0);
     rChaos[0] = 1.0;
     std::cout << "omega: " << 1.0 / (3 * physViscosity / conversionViscosity + 0.5) << std::endl;
 
-    if(op.polynomialType == 0) {
-      op.convert2affinePCE(1.0 / (3 * physViscosity * op.parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * op.parameter1 / conversionViscosity + 0.5),chaos);
-    }
-    else if (op.polynomialType == 1) {
-      op.convert2affinePCE((1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter1, (1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter2, chaos);
-    }
-    
     if (exm == "tgv"){
-      omegaChaos[0] = chaos[0];
-      omegaChaos[1] = chaos[1]; 
+      std::vector<double> omegaRan(op.nq, 0.0);
+      std::vector<double> physViscosityRan(op.nq, 0.0);
+
+      //if(op.polynomialType == 0) {
+      //}
+      //else if (op.polynomialType == 1) {
+      //  op.convert2affinePCE(physViscosity * op.parameter1, physViscosity * op.parameter2, chaos);
+      //}
+
+
+      /*op.convert2affinePCE(physViscosity * op.parameter1, physViscosity * op.parameter2, chaos);
+
+      physViscosityChaos[0] = chaos[0];
+      physViscosityChaos[1] = chaos[1]; 
+      
+      std::cout << "physViscosityChaos: ";
+      for (int alpha = 0; alpha < op.order+1; ++alpha) {
+        std::cout << physViscosityChaos[alpha] << "\t";
+      }
+      std::cout << std::endl;
+
+      op.evaluatePCE(physViscosityChaos, physViscosityRan);*/
+
+
+      op.convert2affinePCE(Re * op.parameter1, Re * op.parameter2, chaos);
+
+      ReChaos[0] = chaos[0];
+      ReChaos[1] = chaos[1]; 
+      
+      std::cout << "ReChaos: ";
+      for (int alpha = 0; alpha < op.order+1; ++alpha) {
+        std::cout << ReChaos[alpha] << "\t";
+      }
+      std::cout << std::endl;
+
+      op.evaluatePCE(ReChaos, ReRan);
+
+      for (int sample = 0; sample < op.nq; ++sample) {
+        physViscosityRan[sample] = physVelocity * L / ReRan[sample];
+        //tauRan[sample] = 3 * physViscosityRan[sample] + 0.5;
+        //dtRan[sample] = (tauRan[sample] - 0.5) / 3.0 * (dx * dx) / physViscosityRan[sample];
+        //conversionViscosityRan[sample] = dx * dx / dtRan[sample];
+        //conversionVelocityRan[sample] = dx / dtRan[sample];
+        //conversionDensityRan[sample] = 1.0;
+        //conversionMassRan[sample] = conversionDensityRan[sample] * dx * dx * dx;
+        //conversionForceRan[sample] = conversionMassRan[sample] * dx / dtRan[sample] / dtRan[sample];
+        //u0Ran[sample] = physVelocity / conversionVelocityRan[sample];
+
+        //omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / conversionViscosityRan[sample] + 0.5 );
+        omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / conversionViscosity + 0.5 );
+      }
+
+      //op.ran2chaos(conversionViscosityRan, conversionViscosityChaos);
+      //op.ran2chaos(conversionVelocityRan, conversionVelocityChaos);
+      op.ran2chaos(omegaRan, omegaChaos);
+      //op.ran2chaos(u0Ran, u0Chaos);
+      //op.ran2chaos(dtRan, dtChaos);
+      //op.ran2chaos(tauRan, tauChaos);
+
+      //op.convert2affinePCE(op.parameter1 / ( 3.0 * physViscosity / conversionViscosity + 0.5 ), op.parameter2 / ( 3.0 * physViscosity / conversionViscosity + 0.5 ), chaos);
+      //omegaChaos[0] = chaos[0];
+      //omegaChaos[1] = chaos[1];
+      std::cout << "omegaChaos: ";
+      for (int alpha = 0; alpha < op.order+1; ++alpha) {
+        std::cout << omegaChaos[alpha] << "\t";
+      }
+      std::cout << std::endl;
+      /*if(op.polynomialType == 0) {
+        op.convert2affinePCE(1.0 / (3 * physViscosity * op.parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * op.parameter1 / conversionViscosity + 0.5),chaos);
+      }
+      else if (op.polynomialType == 1) {
+        op.convert2affinePCE((1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter1, (1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter2, chaos);
+      }*/
+    
+      chaos.clear();
+    }
+    else if (exm == "cavity2d") {
+      omegaChaos[0] = 1.0 / ( 3.0 * physViscosity / conversionViscosity + 0.5 );
     }
 
-    std::cout << "chaos: " << chaos[0] << "\t" << chaos[1] << std::endl;
-    chaos.clear();
 
     //omp_set_num_threads(4);
 //#pragma omp parallel for collapse(2)
@@ -276,6 +386,10 @@ public:
           if(exm == "tgv"){
               double x = i * dx;
               double y = j * dy;
+              
+              //rChaos[alpha] = 1.0 - 1.5 * u0Chaos[alpha] * u0Chaos[alpha] * std::cos(x + y) * std::cos(x - y);
+              //uChaos[alpha] = -u0Chaos[alpha] * std::cos(x) * std::sin(y);
+              //vChaos[alpha] = u0Chaos[alpha] * std::sin(x) * std::cos(y);
               
               rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
               uChaos[0] = -u0 * std::cos(x) * std::sin(y);
@@ -662,6 +776,11 @@ public:
       std::vector<double> v2(op.order+1, 0.0);
       std::vector<double> uSlice(op.order+1, 0.0);
       std::vector<double> vSlice(op.order + 1, 0.0);
+      std::vector<double> tkeChaos(op.nq + 1, 0.0);
+      
+      std::vector<double> u2Ran(op.nq, 0.0);
+      std::vector<double> v2Ran(op.nq, 0.0);
+      std::vector<double> tkeRan(op.nq + 1, 0.0);
         for (int i = 0; i < nx; ++i){
             for (int j = 0; j < ny; ++j){
                 for (int alpha = 0; alpha < op.order + 1; ++alpha) {
@@ -672,8 +791,18 @@ public:
                 op.chaos_product(uSlice, uSlice, u2);
                 op.chaos_product(vSlice, vSlice, v2);
 
+                op.evaluatePCE(u2, u2Ran);
+                op.evaluatePCE(v2, v2Ran);
+
+                for (int sample = 0; sample < op.nq; ++sample) {
+                  tkeRan[sample] = ((u2Ran[sample] + v2Ran[sample]) *  2 / (nx*ny*u0Ran[sample]*u0Ran[sample]));
+                }
+
+                op.ran2chaos(tkeRan, tkeChaos);
+
                 for (int alpha = 0; alpha < op.order + 1; ++alpha) {
                     tke[alpha] += ((u2[alpha] + v2[alpha]) *  2 / (nx*ny*u0*u0));
+                    //tke[alpha] += tkeChaos[alpha];
                 }
                 
                 double x = i * dx;
@@ -752,29 +881,3 @@ public:
 
 #endif // LBM_H
 
-bool directoryExists(const std::string& path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0)
-        return false;
-    else if (info.st_mode & S_IFDIR)
-        return true;
-    else
-        return false;
-}
-
-bool createDirectory(const std::string& path) {
-    int status = mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    if (status == 0)
-        return true;
-    else
-        return false;
-}
-
-bool deleteDirectory(const std::string& path) {
-    std::string command = "rm -rf " + path;
-    int status = std::system(command.c_str());
-    if (status == 0)
-        return true;
-    else
-        return false;
-}

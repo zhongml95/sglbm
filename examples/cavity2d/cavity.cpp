@@ -1,23 +1,20 @@
-#include <iostream>
-#include <cmath>
-//#include "src/polynomial.h"
-#include "src/sglbm.h"
+#include "../../src/sglbm.h"
 
 double calcError(sglbm sglbm, double&uNorm0){
   double error = 0.0;
   double uNorm1 = 0.0;
   for (int i = 0; i < sglbm.nx; ++i){
     for (int j = 0; j < sglbm.ny; j++){
-      std::vector<double> uSlice(sglbm.order+1, 0.0);
-      std::vector<double> vSlice(sglbm.order+1, 0.0);
-      for (int alpha = 0; alpha < sglbm.order+1; ++alpha){
+      std::vector<double> uSlice(sglbm.op.order+1, 0.0);
+      std::vector<double> vSlice(sglbm.op.order+1, 0.0);
+      for (int alpha = 0; alpha < sglbm.op.order+1; ++alpha){
         uSlice[alpha] = sglbm.u[i][j][alpha];
         vSlice[alpha] = sglbm.v[i][j][alpha];
       }
       double uMean = 0.0;
       double vMean = 0.0;
-      uMean = sglbm.mean(uSlice);
-      vMean = sglbm.mean(vSlice);
+      uMean = sglbm.op.mean(uSlice);
+      vMean = sglbm.op.mean(vSlice);
       uNorm1 += (uMean * uMean + vMean * vMean);
     }
   }
@@ -31,28 +28,24 @@ double calcError(sglbm sglbm, double&uNorm0){
 
 int main( int argc, char* argv[] )
 {
-    unsigned int order = 4;
-    unsigned int nq = 15;
-    int resolution = 256;
-    double parameter1 = 0.9;
-    double parameter2 = 1.1;
-    double L = 1.0;//2.0 * M_PI;
-    double lx = 1.0;//2.0 * M_PI;
-    double ly = 1.0;//2.0 * M_PI;
+    Parameters params;
+    
+    // Call readParameters to populate the params instance
+    readParameters("./parameters.dat", params);
 
+    double dx = params.L / params.resolution;
+    double dy = params.L / params.resolution;
+
+    double physViscosity = params.physVelocity * params.L / params.Re;
     double tau = 0.5384;
-    double Re = 1000;
-    double physVelocity = 1.0;
-    double nu = 0.001;
-    std::vector<std::vector<int>> material(resolution+1, std::vector<int>(resolution+1, 1));
 
-    double dx = L / resolution;
-    double dy = L / resolution;
-    int nx = int(lx / dx)+1;
-    int ny = int(ly / dy)+1;
+    std::vector<std::vector<int>> material(params.resolution+1, std::vector<int>(params.resolution+1, 1));
+    
+    int nx = int(params.lx / dx)+1;
+    int ny = int(params.ly / dy)+1;
 
-    std::string dir = "./data/cavity2d/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/";
-    std::string dirAna = "./data/cavity2d/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/final/";
+    std::string dir = "./data/cavity2d/Nr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/";
+    std::string dirAna = "./data/cavity2d/Nr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/final/";
 
     std::string command;
     int a;
@@ -79,9 +72,9 @@ int main( int argc, char* argv[] )
         }
     }
     
-    sglbm sglbm(dir, "cavity2d", nq, order, parameter1,parameter2);
-    sglbm.setGeometry(L,resolution,lx,ly,material);
-    sglbm.setFluid(physVelocity,nu,tau);
+    sglbm sglbm(dir, "cavity2d", params);
+    sglbm.setGeometry(params.L, params.resolution, params.lx, params.ly, material);
+    sglbm.setFluid(params.physVelocity, physViscosity, tau);
     sglbm.initialize();
     //sglbm.iteration();
 

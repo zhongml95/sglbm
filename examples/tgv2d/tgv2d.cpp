@@ -1,7 +1,5 @@
-#include <iostream>
 #include <cmath>
-//#include "src/polynomial.h"
-#include "src/sglbm.h"
+#include "../../src/sglbm.h"
 
 double calc_tke_error(sglbm sglbm, int count) {
   
@@ -13,6 +11,9 @@ double calc_tke_error(sglbm sglbm, int count) {
 
 int main( int argc, char* argv[] )
 {
+<<<<<<< HEAD:examples/tgv2d/tgv2d.cpp
+    Parameters params;
+=======
     unsigned int order = 9;
     unsigned int nq = 2000;
     int polynomialType = 0;
@@ -30,9 +31,23 @@ int main( int argc, char* argv[] )
     double nu = physVelocity*L/Re;
     double tau = 3 * nu + 0.5;
     std::vector<std::vector<int>> material(resolution+1, std::vector<int>(resolution+1, 1));
+>>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c:main.cpp
     
-    std::string dir = "./data/tgv/t5/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/";
-    std::string dirAna = "./data/tgv/t5/Nr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/final/";
+    // Call readParameters to populate the params instance
+    readParameters("./parameters.dat", params);
+
+    double dx = params.L / params.resolution;
+    double dy = params.L / params.resolution;
+
+    double physViscosity = params.physVelocity * params.L / params.Re;
+    double tau = 3 * physViscosity + 0.5;
+    std::vector<std::vector<int>> material(params.resolution+1, std::vector<int>(params.resolution+1, 1));
+    
+    //std::string dir = "./data/tgv/t5/ViscosityNr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/";
+    //std::string dirAna = "./data/tgv/t5/ViscosityNr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/final/";
+    
+    std::string dir = "./data/tgv/t5/ReNr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/";
+    std::string dirAna = "./data/tgv/t5/ReNr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/final/";
 
     std::string command;
     int a;
@@ -47,9 +62,15 @@ int main( int argc, char* argv[] )
     std::cout << "finish mkdir" << std::endl;
 
 
+<<<<<<< HEAD:examples/tgv2d/tgv2d.cpp
+    sglbm sglbm(dir, "tgv", params);
+    sglbm.setGeometry(params.L, params.resolution, params.lx, params.ly, material);
+    sglbm.setFluid(params.physVelocity, physViscosity, tau);
+=======
     sglbm sglbm(dir, "tgv", nq, order, parameter1, parameter2, polynomialType);
     sglbm.setGeometry(L,resolution,lx,ly,material);
     sglbm.setFluid(physVelocity,nu,tau);
+>>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c:main.cpp
     sglbm.initialize();
     //sglbm.iteration();
 
@@ -84,7 +105,6 @@ int main( int argc, char* argv[] )
 
 /*#pragma omp single
       {
-        count = i;
         if (i % 1000 == 0) {
           //c_end = std::clock();
           end = omp_get_wtime();
@@ -99,7 +119,12 @@ int main( int argc, char* argv[] )
           start = end;
           t = 0.0;
         }
+<<<<<<< HEAD:examples/tgv2d/tgv2d.cpp
+      }
+      count = i;
+=======
       }*/
+>>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c:main.cpp
     }
     count = int(td * 0.5) - 1;
     end = omp_get_wtime();

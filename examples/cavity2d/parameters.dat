@@ -1,0 +1,12 @@
+points_weights_method=1
+order=2
+nq=5
+polynomialType=0
+resolution=64
+parameter1=0.9
+parameter2=1.1
+L=1.0
+lx=1.0
+ly=1.0
+Re=1000.0
+physVelocity=1.0

@@ -11,31 +11,34 @@ def reshape(oldMatrix):
     return newMatrix
 
 
-nrlist32 = np.array([1, 2, 3, 4, 5, 6, 7, 8])
-#nqlist32 = np.array([3, 5, 7, 9, 11, 13, 15, 17])
-nqlist32 = np.array([100, 100, 100, 100, 100, 100, 100, 100])
+nrlist32 = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+#nqlist32 = np.array([21, 21, 21, 21, 21, 21, 21, 21, 21])
+#nqlist32 = np.array([1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000])
+nqlist32 = 2 * nrlist32 + 1
 
-nrlist64 = np.array([1, 2, 3, 4, 5, 6, 7, 8])
-#nqlist64 = np.array([3, 5, 7, 9, 11, 13, 15, 17])
-nqlist64 = np.array([100, 100, 100, 100, 100, 100, 100, 100])
+nrlist64 = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+nqlist64 = np.array([21, 21, 21, 21, 21, 21, 21, 21, 21])
+#nqlist64 = np.array([100, 100, 100, 100, 100, 100, 100, 100])
 
 err32 = np.zeros((2, nrlist32.size-1))
 err64 = np.zeros((2, nrlist64.size-1))
 
-filenameTruth32 = "/home/zhongml95/sglbm/data/tgv/t5/Nr"+str(nrlist32[-1])+"Nq"+str(nqlist32[-1])+"N32/final/tke.dat"
+filenameTruth32 = "/home/zhongml95/sglbm/data/tgv/t5/ReNr"+str(nrlist32[-1])+"Nq"+str(nqlist32[-1])+"N32/final/tke.dat"
 TKETruth32 = np.loadtxt(filenameTruth32)
 filenameTruth64 = "/home/zhongml95/sglbm/data/tgv/t5/Nr"+str(nrlist64[-1])+"Nq"+str(nqlist64[-1])+"N64/final/tke.dat"
 TKETruth64 = np.loadtxt(filenameTruth64)
 #TKETruth[0] = 0.36795543345255477
 for i in range(nrlist32.size-1):
-    filename = "/home/zhongml95/sglbm/data/tgv/t5/Nr"+str(nrlist64[i])+"Nq"+str(nqlist32[i])+"N32/final/tke.dat"
+    filename = "/home/zhongml95/sglbm/data/tgv/t5/ReNr"+str(nrlist64[i])+"Nq"+str(nqlist32[i])+"N32/final/tke.dat"
     TKE = np.loadtxt(filename)
-    err32[:, i] = abs( TKE - TKETruth32 ) / TKETruth32
+    err32[0, i] = abs( TKE[0] - TKETruth32[0] ) / TKETruth32[0]
+    err32[1, i] = abs( TKE[1] - TKETruth32[1] ) / TKETruth32[1]
 
 for i in range(nrlist64.size-1):
     filename = "/home/zhongml95/sglbm/data/tgv/t5/Nr"+str(nrlist64[i])+"Nq"+str(nqlist64[i])+"N64/final/tke.dat"
     TKE = np.loadtxt(filename)
-    err64[:, i] = abs( TKE - TKETruth64 ) / TKETruth64
+    err64[0, i] = abs( TKE[0] - TKETruth64[0] ) / TKETruth64[0]
+    err64[1, i] = abs( TKE[1] - TKETruth64[1] ) / TKETruth64[1]
     
 # Plotting the L2 norm
 plt.figure()
