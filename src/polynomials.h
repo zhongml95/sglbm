@@ -91,6 +91,7 @@ std::vector<int> find_index(int idx, int dimension, int nq) {
 class polynomials
 {
 public:
+    size_t points_weights_method;
     int No;
     int nq;
     int total_nq;
@@ -110,7 +111,8 @@ public:
     std::vector<double> t2Product;
     std::vector<std::vector<std::vector<double>>> t3Product;
 
-    polynomials(int _nq, int _order, std::vector<double> _parameter1, std::vector<double> _parameter2, std::vector<int> _polynomial_types){
+    polynomials(int _nq, int _order, std::vector<double> _parameter1, std::vector<double> _parameter2, std::vector<int> _polynomial_types, size_t _points_weights_method){
+        points_weights_method = _points_weights_method;
         nq = _nq;
         order = _order;
         polynomial_types = _polynomial_types;
@@ -157,7 +159,7 @@ public:
 
         for (int i = 0; i < random_number_dimension; ++i) {
             std::cout << "polynomial " << i+1 << std::endl;
-            polynomial op(nq, order, parameter1[i], parameter2[i], polynomial_types[i]);
+            polynomial op(nq, order, parameter1[i], parameter2[i], polynomial_types[i], points_weights_method);
             points[i] = op.points;
             weights[i] = op.weights;
             polynomial_coefficients[i] = op.polynomialCoeffs;
