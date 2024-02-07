@@ -87,7 +87,7 @@ int main( int argc, char* argv[] )
 
     double t = 0.0, t0, t1;
 
-    sglbm.output(dir, 0);
+    sglbm.output(dir, 0, 0);
 
 
     size_t cores = omp_get_num_procs();
@@ -116,12 +116,12 @@ int main( int argc, char* argv[] )
           start = end;
           t = 0.0;
           if (count % 10000 == 0) {
-            sglbm.output(dir, count);
+            sglbm.output(dir, count, 0);
           }
         }
       }
     }
-    sglbm.output(dir, count);
+    sglbm.output(dir, count, 0);
 
     return 0;
 }

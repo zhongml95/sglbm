@@ -41,7 +41,6 @@ void normalize(std::vector<double>& v) {
     }
 }
 
-<<<<<<< HEAD
 // Function to get the colomn of a matrix
 std::vector<double> getColomn(std::vector<std::vector<double>> matrix, int j) {
     std::vector<double> colomn(matrix[0].size(), 0.0);
@@ -49,33 +48,6 @@ std::vector<double> getColomn(std::vector<std::vector<double>> matrix, int j) {
         colomn[i] = matrix[i][j];
     }
     return colomn;
-=======
-// Function to perform Gram-Schmidt orthogonalization
-std::vector<std::vector<double>> gramSchmidt(std::vector<std::vector<double>>& vectors) {
-    size_t n = vectors.size();
-    
-    // Initialize the orthogonalized vectors
-    std::vector<std::vector<double>> orthogonalized(n, std::vector<double>(vectors[0].size(), 0.0));
-    
-    for (size_t i = 0; i < n; ++i) {
-        orthogonalized[i] = vectors[i];
-        for (size_t j = 0; j < i; ++j) {
-            double projection = dotProduct(vectors[i], orthogonalized[j]) / dotProduct(orthogonalized[j], orthogonalized[j]);
-            orthogonalized[i] = vectorSubtraction(orthogonalized[i], vectorScalarProduct(orthogonalized[j], projection));
-        }
-        normalize(orthogonalized[i]);
-    }
-
-    return orthogonalized;
-    
-    // Print the orthogonalized vectors
-    //vectors.swap(orthogonalized);
-    /*for (size_t i = 0; i < n; ++i) {
-        for (size_t j = 0; j < vectors[i].size(); ++j) {
-            vectors[i][j] = orthogonalized[i][j];
-        }
-    }*/
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
 }
 
 std::vector<std::vector<double>> generateIdentityMatrix(int n) {

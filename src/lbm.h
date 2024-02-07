@@ -187,11 +187,7 @@ public:
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
 
-<<<<<<< HEAD
           F[i][j][k] = f[i][j][k] - (f[i][j][k] - feq[i][j][k]) / tau; 
-=======
-          F[i][j][k] = f[i][j][k] - (f[i][j][k] - feq[i][j][k]) * omega0; 
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
 
         }
       }
@@ -287,15 +283,9 @@ public:
 
   }
 
-<<<<<<< HEAD
   void output(std::string dir, int iter, double time_cost)
   {
     /*std::string filename = dir + std::to_string(iter) + ".dat";
-=======
-  void output(std::string dir, int iter)
-  {
-    std::string filename = dir + std::to_string(iter) + ".dat";
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
     std::ofstream outputFile(filename);
     if (!outputFile) {
       std::cerr << "Error opening the file: " << filename << std::endl;
@@ -316,29 +306,17 @@ public:
 
       }
     }
-<<<<<<< HEAD
     outputFile.close();*/
 
     if (exm == "tgv"){
       std::string filenameTKE = dir + "final/tke.dat";
       std::ofstream outputFileTKE(filenameTKE, std::ios::app);
-=======
-    outputFile.close();
-
-    if (exm == "tgv"){
-      std::string filenameTKE = dir + "final/tke.dat";
-      std::ofstream outputFileTKE(filenameTKE);
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
       double tke = 0.0;
       double tkeAna = 0.0;
       totalKineticEnergy(tke, tkeAna, iter+1);
 
       outputFileTKE.precision(20);  
-<<<<<<< HEAD
       outputFileTKE << tke << "\t" << tkeAna << "\t" << time_cost << std::endl;
-=======
-      outputFileTKE << tke << "\t" << tkeAna;
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
       outputFileTKE.close();
     }
 
@@ -470,33 +448,3 @@ public:
 
 
 #endif // LBM_H
-<<<<<<< HEAD
-=======
-
-bool directoryExists(const std::string& path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0)
-        return false;
-    else if (info.st_mode & S_IFDIR)
-        return true;
-    else
-        return false;
-}
-
-bool createDirectory(const std::string& path) {
-    int status = mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    if (status == 0)
-        return true;
-    else
-        return false;
-}
-
-bool deleteDirectory(const std::string& path) {
-    std::string command = "rm -rf " + path;
-    int status = std::system(command.c_str());
-    if (status == 0)
-        return true;
-    else
-        return false;
-}
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c

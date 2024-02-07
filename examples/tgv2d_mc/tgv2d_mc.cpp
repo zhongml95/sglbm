@@ -57,7 +57,7 @@ int main( int argc, char* argv[] )
   std::srand(static_cast<unsigned>(std::time(nullptr)));
 
   double start_mc = omp_get_wtime();
-  for (int n = 175; n < total_nq; ++n) {  
+  for (int n = 0; n < total_nq; ++n) {  
     double random_physViscosity = parameter1 + static_cast<double>(std::rand()) / RAND_MAX * (parameter2 - parameter1);
     lbm.setFluid(params.physVelocity, random_physViscosity, tau);
     lbm.initialize();

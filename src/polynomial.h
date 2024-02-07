@@ -1,4 +1,3 @@
-//#include <iostream>
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -222,7 +221,6 @@ public:
 
         //normalized the coefficients
         std::cout << "construct gpc" << std::endl;
-<<<<<<< HEAD
         for (int i = 0; i < nq+1; ++i)
         {
             std::vector<double> coeffs_i(nq+1,0.0);
@@ -235,30 +233,6 @@ public:
             //std::cout << i << std::endl;
             //for (int j = 0; j < i+1; ++j)
             for (int j = 0; j < nq+1; ++j)
-=======
-        for (int i = 0; i < order+1; ++i)
-        {
-            std::vector<double> coeffs_i(order+1,0.0);
-            coeffs_i = Legendre_coefficients(i);
-            
-            for (int j = 0; j < i+1; ++j)
-            {
-                //normalize the coefficient with the zeroth term
-                polynomialCoeffs[i][j] = coeffs_i[j];// / coeffs_i[i];
-                //std::cout << polynomialCoeffs[i][j] << "\t";
-            }
-            //std::cout << std::endl;
-        }
-        std::cout << "quadrature points" << std::endl;
-        quadrature_rule();
-        
-        for (int i = 0; i < order+1; ++i)
-        {
-            std::vector<double> coeffs_i(order+1,0.0);
-            coeffs_i = Legendre_coefficients(i);
-            
-            for (int j = 0; j < i+1; ++j)
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
             {
                 //normalize the coefficient with the zeroth term
                 if (j < i+1) {
@@ -267,9 +241,9 @@ public:
                 else {
                      polynomialCoeffs[i][j] = 0.;
                 }
-                //std::cout << polynomialCoeffs[i][j] << "\t";
+                std::cout << polynomialCoeffs[i][j] << "\t";
             }
-            //std::cout << std::endl;
+            std::cout << std::endl;
         }
         std::cout << "quadrature points" << std::endl;
         polynomial_points_weights();
@@ -312,7 +286,6 @@ public:
         }
     }
 
-<<<<<<< HEAD
 
     void polynomial_points_weights()
     {
@@ -348,6 +321,7 @@ public:
             for (int i = 0; i < nq; i++) {
                 points[i] = R[i][i];
             }
+            std::sort(points.begin(), points.end());
             
             if(polynomialType == 0) {
                 for(int i = 0; i < nq; ++i){
@@ -366,165 +340,18 @@ public:
         }
 
         double weights_sum = 0.0;
-=======
-    // Compute maximum pointwise difference
-    double dist_max(const std::vector<double>& a, const std::vector<double>& b)
-    {
-        int n = a.size();
-        double dist = 0.0;
-        double max_dist = 0.0;
-
-        for(int i=0; i<n; ++i) {
-            dist = std::abs(a[i]-b[i]);
-            if(dist>max_dist) {
-                max_dist = dist; 
-            }  
-        }
-        return max_dist;
-    }
-
-    // Compute Chebyshev Gauss Nodes
-    void chebnodes() 
-    {
-        for(int i = 0; i < nq; ++i) 
-        {
-            points[i] = cos(M_PI * double(2.0 * i + 1.0) / double(2.0 * nq));    
-        } 
-    } 
-
-    void initguess() 
-    {   
-        for(int i = 0; i < nq; ++i) 
-        {   
-            points[i] = -cos(M_PI * double(i + 0.75)/double(nq + 0.5));    
-        }     
-    }
-
-    void rec_legendre(std::vector<double>& a, std::vector<double>& b)
-    {
-        int n = a.size();
-        for(int i=0;i<n;++i) 
-        {
-            a[i] = (2.0*i+1.0)/(i+1.0);
-            b[i] = double(i)/(i+1.0);
-        }
-    }
-
-    // Evaluate the nth order Legendre polynomial and its derivative
-    void legendre(const std::vector<double>& a, const std::vector<double>& b, std::vector<double>& L, std::vector<double>& Lp) 
-    {
-        std::vector<double> L0(nq,1.0);
-        std::vector<double> L1(nq,0.0);
-        
-        // Iterate over grid points
-        for(int j = 0; j < nq; ++j) 
-        {
-            L1[j] = points[j];
-            // Iterate over polynomials  
-            for(int k = 1; k < nq; ++k) 
-            {
-                L[j] = a[k] * points[j] * L1[j] - b[k] * L0[j];
-                L0[j] = L1[j];
-                L1[j] = L[j];
-            }
-            Lp[j] = nq * (L0[j] - points[j] * L[j]) / (1.0 - points[j] * points[j]); 
-        } 
-    } 
-
-    // Update grid points as well as the nth Legendre polynomial and its derivative  
-    void newton_step(const std::vector<double>& a, const std::vector<double>& b, std::vector<double>& L, std::vector<double>& Lp) 
-    {
-        legendre(a,b,L,Lp);
-        for(int i = 0; i < nq; ++i) 
-        {
-            points[i] -= L[i]/Lp[i];
-        } 
-    }
-
-    void quadrature_rule()
-    {
-        double dist = 1;
-        double tol = 1e-15;
-        int iter = 0;
-
-        // Use Chebyshev-Gauss nodes and initial guess
-        
-        //initguess();
-        chebnodes();
-
-        std::vector<double> x0(points);
-        std::vector<double> L(nq,0.0);
-        std::vector<double> Lp(nq,0.0);
-        std::vector<double> a(nq,0.0);
-        std::vector<double> b(nq,0.0);
-
-
-        rec_legendre(a,b);
-
-        // Iteratively correct nodes with Newton's method
-        while(dist>tol) {     
-            newton_step(a,b,L,Lp);
-            dist = dist_max(points, x0); 
-            ++iter;
-            x0 = points;
-        }
-
-        /*std::vector<std::vector<double>> J;
-        if(polynomialType == 0) {
-            J = constructJacobiMatrix_Legendre(nq);
-        }
-        else if (polynomialType == 1) {
-            J = constructJacobiMatrix_Hermite(nq);
-        }
-
-        std::vector<std::vector<double>> Q = generateIdentityMatrix(nq);
-        std::vector<std::vector<double>> R = copyMatrix(J);
-        int iter = 1;
-        while(iter < 10000){
-            householderQR(J, Q, R);
-            J = matrixMultiplication(R,Q);
-            iter++;
-            //std::cout << iter << std::endl;
-        }
-
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
         std::cout << "points" << std::endl;
         for (int i = 0; i < nq; i++) {
             std::cout <<  points[i] << "\t";
             weights_sum += weights[i];
         }
-<<<<<<< HEAD
-        std::cout << "sum of weights: " << weights_sum << std::endl;        
-=======
-        
-        std::sort(points.begin(), points.end());
-        for (int i = 0; i < nq; i++) {
-            std::cout << points[i] << "\t";
-        }*/
-
-        
         std::cout << std::endl;
         std::cout << "weights" << std::endl;
-        if(polynomialType == 0) {
-            for(int i = 0; i < nq; ++i){
-                weights[i] = 1.0/((1-points[i]*points[i])*(Lp[i]*Lp[i]));
-                //std::cout << std::setprecision(20);
-                //std::cout << weights[i] << "\t";
-            }
-            /*for(int i = 0; i < nq; ++i){
-                weights[i] = 1.0  / ( (1.0 - points[i]*points[i]) * std::pow(legendreDerivative(nq, i), 2.0) );
-                //std::cout << std::setprecision(20);
-                std::cout << weights[i] << "\t";
-            }
-            std::cout << std::endl;*/
+        for (int i = 0; i < nq; i++) {
+            std::cout <<  weights[i] << "\t";
         }
-        else if (polynomialType == 1) {        
-            double weights_sum = 0.0;
-            for (int i = 0; i < nq; i++) {
-                weights[i] = std::pow(2, nq-1) * std::tgamma(nq+1) * std::sqrt(M_PI) / pow(nq * evaluate(nq-1, i), 2);
-                weights_sum += weights[i];
-            }
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c
+        std::cout << std::endl;
+        std::cout << "sum of weights: " << weights_sum << std::endl;        
 
     }
 

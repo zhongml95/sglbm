@@ -47,7 +47,7 @@ void save_velocity_field(std::string dir, int nx, int ny, std::vector<std::vecto
 
 int main( int argc, char* argv[] )
 {
-  int resolution = 32;
+  int resolution = 64;
   double L = 2.0 * M_PI;
   double lx = 2.0 * M_PI;
   double ly = 2.0 * M_PI;
@@ -62,8 +62,8 @@ int main( int argc, char* argv[] )
 
   std::vector<std::vector<int>> material(resolution+1, std::vector<int>(resolution+1, 1));
     
-  std::string dir    = "/home/zhongml95/sglbm/cluster/LBM" + std::to_string(resolution) + "/";
-  std::string dirAna = "/home/zhongml95/sglbm/cluster/LBM" + std::to_string(resolution) + "/final/";
+  std::string dir    = "./data/nx" + std::to_string(resolution) + "/";
+  std::string dirAna = "./data/nx" + std::to_string(resolution) + "/final/";
 
   std::string command;
   int a;

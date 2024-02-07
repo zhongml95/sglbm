@@ -1,8 +1,8 @@
 points_weights_method=1
-order=2
-nq=5
+order=3
+nq=10
 polynomialType=0
-resolution=32
+resolution=64
 parameter1=0.8
 parameter2=1.2
 L=6.28318530718

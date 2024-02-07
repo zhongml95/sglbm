@@ -11,27 +11,7 @@ double calc_tke_error(sglbm sglbm, int count) {
 
 int main( int argc, char* argv[] )
 {
-<<<<<<< HEAD:examples/tgv2d/tgv2d.cpp
     Parameters params;
-=======
-    unsigned int order = 9;
-    unsigned int nq = 2000;
-    int polynomialType = 0;
-    int resolution = 32;
-    double parameter1 = 0.8;//0.8
-    double parameter2 = 1.2;//1.2
-    double L = 2.0 * M_PI;
-    double lx = 2.0 * M_PI;
-    double ly = 2.0 * M_PI;
-    double dx = L / resolution;
-    double dy = L / resolution;
-
-    double Re = 15;
-    double physVelocity = 0.01;
-    double nu = physVelocity*L/Re;
-    double tau = 3 * nu + 0.5;
-    std::vector<std::vector<int>> material(resolution+1, std::vector<int>(resolution+1, 1));
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c:main.cpp
     
     // Call readParameters to populate the params instance
     readParameters("./parameters.dat", params);
@@ -62,15 +42,9 @@ int main( int argc, char* argv[] )
     std::cout << "finish mkdir" << std::endl;
 
 
-<<<<<<< HEAD:examples/tgv2d/tgv2d.cpp
     sglbm sglbm(dir, "tgv", params);
     sglbm.setGeometry(params.L, params.resolution, params.lx, params.ly, material);
     sglbm.setFluid(params.physVelocity, physViscosity, tau);
-=======
-    sglbm sglbm(dir, "tgv", nq, order, parameter1, parameter2, polynomialType);
-    sglbm.setGeometry(L,resolution,lx,ly,material);
-    sglbm.setFluid(physVelocity,nu,tau);
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c:main.cpp
     sglbm.initialize();
     //sglbm.iteration();
 
@@ -103,7 +77,7 @@ int main( int argc, char* argv[] )
       sglbm.streaming();
       sglbm.reconstruction(); 
 
-/*#pragma omp single
+#pragma omp single
       {
         if (i % 1000 == 0) {
           //c_end = std::clock();
@@ -119,12 +93,8 @@ int main( int argc, char* argv[] )
           start = end;
           t = 0.0;
         }
-<<<<<<< HEAD:examples/tgv2d/tgv2d.cpp
       }
       count = i;
-=======
-      }*/
->>>>>>> bf2a71be27f7927d2a4b59af8409955525ea971c:main.cpp
     }
     count = int(td * 0.5) - 1;
     end = omp_get_wtime();

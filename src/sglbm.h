@@ -1,7 +1,7 @@
 #ifndef SGLBM_H
 #define SGLBM_H
-//#include "polynomial.h"
 #include "polynomial.h"
+#include <iostream>
 #include <fstream>
 #include <ctime>
 #include <omp.h>
@@ -74,12 +74,14 @@ public:
   std::vector<std::vector<std::vector<std::vector<double>>>> F;
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
+
     sglbm(std::string _dir, std::string _exm, const Parameters& params)
         : op(params.nq, params.order, params.parameter1, params.parameter2, params.polynomialType, params.points_weights_method) 
-    {
-        dir = _dir;
-        exm = _exm;
-    }
+  {
+    dir = _dir;
+    exm = _exm;
+
+  }
 
   std::vector<double> find_intersection(std::vector<double> center, double radius, std::vector<int> start_point, std::vector<int> end_point)
   {
@@ -297,31 +299,17 @@ public:
       std::vector<double> physViscosityRan(op.nq, 0.0);
 
       //if(op.polynomialType == 0) {
+      op.convert2affinePCE(Re * op.parameter1, Re * op.parameter2, chaos);
       //}
       //else if (op.polynomialType == 1) {
       //  op.convert2affinePCE(physViscosity * op.parameter1, physViscosity * op.parameter2, chaos);
       //}
 
 
-      /*op.convert2affinePCE(physViscosity * op.parameter1, physViscosity * op.parameter2, chaos);
-
-      physViscosityChaos[0] = chaos[0];
-      physViscosityChaos[1] = chaos[1]; 
-      
-      std::cout << "physViscosityChaos: ";
-      for (int alpha = 0; alpha < op.order+1; ++alpha) {
-        std::cout << physViscosityChaos[alpha] << "\t";
-      }
-      std::cout << std::endl;
-
-      op.evaluatePCE(physViscosityChaos, physViscosityRan);*/
-
-
-      op.convert2affinePCE(Re * op.parameter1, Re * op.parameter2, chaos);
 
       ReChaos[0] = chaos[0];
       ReChaos[1] = chaos[1]; 
-      
+
       std::cout << "ReChaos: ";
       for (int alpha = 0; alpha < op.order+1; ++alpha) {
         std::cout << ReChaos[alpha] << "\t";
@@ -330,27 +318,28 @@ public:
 
       op.evaluatePCE(ReChaos, ReRan);
 
+
       for (int sample = 0; sample < op.nq; ++sample) {
         physViscosityRan[sample] = physVelocity * L / ReRan[sample];
-        //tauRan[sample] = 3 * physViscosityRan[sample] + 0.5;
-        //dtRan[sample] = (tauRan[sample] - 0.5) / 3.0 * (dx * dx) / physViscosityRan[sample];
-        //conversionViscosityRan[sample] = dx * dx / dtRan[sample];
-        //conversionVelocityRan[sample] = dx / dtRan[sample];
-        //conversionDensityRan[sample] = 1.0;
-        //conversionMassRan[sample] = conversionDensityRan[sample] * dx * dx * dx;
-        //conversionForceRan[sample] = conversionMassRan[sample] * dx / dtRan[sample] / dtRan[sample];
-        //u0Ran[sample] = physVelocity / conversionVelocityRan[sample];
+        tauRan[sample] = 3 * physViscosityRan[sample] + 0.5;
+        dtRan[sample] = (tauRan[sample] - 0.5) / 3.0 * (dx * dx) / physViscosityRan[sample];
+        conversionViscosityRan[sample] = dx * dx / dtRan[sample];
+        conversionVelocityRan[sample] = dx / dtRan[sample];
+        conversionDensityRan[sample] = 1.0;
+        conversionMassRan[sample] = conversionDensityRan[sample] * dx * dx * dx;
+        conversionForceRan[sample] = conversionMassRan[sample] * dx / dtRan[sample] / dtRan[sample];
+        u0Ran[sample] = physVelocity / conversionVelocityRan[sample];
 
-        //omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / conversionViscosityRan[sample] + 0.5 );
-        omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / conversionViscosity + 0.5 );
+        omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / conversionViscosityRan[sample] + 0.5 );
+        //omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / conversionViscosity + 0.5 );
       }
 
-      //op.ran2chaos(conversionViscosityRan, conversionViscosityChaos);
-      //op.ran2chaos(conversionVelocityRan, conversionVelocityChaos);
+      op.ran2chaos(conversionViscosityRan, conversionViscosityChaos);
+      op.ran2chaos(conversionVelocityRan, conversionVelocityChaos);
       op.ran2chaos(omegaRan, omegaChaos);
-      //op.ran2chaos(u0Ran, u0Chaos);
-      //op.ran2chaos(dtRan, dtChaos);
-      //op.ran2chaos(tauRan, tauChaos);
+      op.ran2chaos(u0Ran, u0Chaos);
+      op.ran2chaos(dtRan, dtChaos);
+      op.ran2chaos(tauRan, tauChaos);
 
       //op.convert2affinePCE(op.parameter1 / ( 3.0 * physViscosity / conversionViscosity + 0.5 ), op.parameter2 / ( 3.0 * physViscosity / conversionViscosity + 0.5 ), chaos);
       //omegaChaos[0] = chaos[0];
@@ -367,6 +356,7 @@ public:
         op.convert2affinePCE((1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter1, (1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * op.parameter2, chaos);
       }*/
     
+      std::cout << "chaos: " << omegaChaos[0] << "\t" << omegaChaos[1] << "\t" << omegaChaos[2] << std::endl;
       chaos.clear();
     }
     else if (exm == "cavity2d") {
@@ -390,7 +380,7 @@ public:
               //rChaos[alpha] = 1.0 - 1.5 * u0Chaos[alpha] * u0Chaos[alpha] * std::cos(x + y) * std::cos(x - y);
               //uChaos[alpha] = -u0Chaos[alpha] * std::cos(x) * std::sin(y);
               //vChaos[alpha] = u0Chaos[alpha] * std::sin(x) * std::cos(y);
-              
+
               rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
               uChaos[0] = -u0 * std::cos(x) * std::sin(y);
               vChaos[0] = u0 * std::sin(x) * std::cos(y);
@@ -662,7 +652,7 @@ public:
 
   }
 
-  void output(std::string dir, int iter, double total_computational_time)
+ void output(std::string dir, int iter, double total_computational_time)
   {
     std::string filename = dir + std::to_string(iter) + ".dat";
     std::ofstream outputFile(filename);
@@ -769,7 +759,6 @@ public:
     outputFileV.close();
 
   }
-
     void totalKineticEnergy(std::vector<double>&tke, double&tkeAna, int t)
     {
       std::vector<double> u2(op.order+1, 0.0);
@@ -880,4 +869,3 @@ public:
 
 
 #endif // LBM_H
-

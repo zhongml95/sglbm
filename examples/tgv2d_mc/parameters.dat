@@ -1,4 +1,4 @@
-points_weights_method=1
+points_weights_method=0
 order=2
 nq=5
 polynomialType=0
