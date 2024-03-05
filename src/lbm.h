@@ -162,8 +162,15 @@ public:
             v[i][j] = u0 * std::sin(x) * std::cos(y);
           }
           else if (exm == "cavity2d"){
+            double x = i * dx;
+            double y = j * dy;
             rho[i][j] = 1.0;
             //omegaChaos[0] = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
+            if (material[i][j] == 1) {
+              u[i][j] = 0.1 * u0 * (y - 0.5);
+              v[i][j] = 0.1 * u0 * ( -(x - 0.5));
+
+            }
           }
       }
     }
@@ -246,35 +253,15 @@ public:
           v[i][j] = rhov / rho[i][j];
 
         }
-        /*else if (material[i][j] == 2)
+        else if (material[i][j] == 2)
         {
-          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
-            u[i][j][alpha] = 0.0;
-            v[i][j][alpha] = 0.0;
-          }
-          for (int sample = 0; sample < op.nq; sample++) {
-            uRan[sample] = 0.0;
-            vRan[sample] = 0.0;
-          }
+          u[i][j] = 0.0;
+          v[i][j] = 0.0;
         }
         else if (material[i][j] == 3){
-          std::vector<double> uSlice(op.order + 1, 0.0);
-          std::vector<double> vSlice(op.order + 1, 0.0);
-          std::vector<double> chaos(2,0.0);
-          op.convert2affinePCE(op.parameter1*u0, op.parameter2*u0,chaos);
-          uSlice[0] = chaos[0];
-          uSlice[1] = chaos[1];
-          op.evaluatePCE(uSlice, uRan);
-          std::vector<double> empty(op.nq, 0.0);
-          vRan.swap(empty);
-
-          for (int alpha = 0; alpha < op.order + 1; ++alpha) {
-            if (alpha == 0 || alpha == 1)
-            u[i][j][alpha] = 0.0;
-            v[i][j][alpha] = 0.0;
-          }
-        }*/
-
+          u[i][j] = u0;
+          v[i][j] = 0.0;
+        }
         for (int k = 0; k < 9; ++k) {
           feq[i][j][k] = equilibrium(rho[i][j], u[i][j], v[i][j], cx[k], cy[k], w[k]); 
         }
@@ -285,7 +272,7 @@ public:
 
   void output(std::string dir, int iter, double time_cost)
   {
-    /*std::string filename = dir + std::to_string(iter) + ".dat";
+    std::string filename = dir + std::to_string(iter) + ".dat";
     std::ofstream outputFile(filename);
     if (!outputFile) {
       std::cerr << "Error opening the file: " << filename << std::endl;
@@ -306,7 +293,7 @@ public:
 
       }
     }
-    outputFile.close();*/
+    outputFile.close();
 
     if (exm == "tgv"){
       std::string filenameTKE = dir + "final/tke.dat";
@@ -371,6 +358,7 @@ public:
 
   }
 
+
     void totalKineticEnergy(double&tke, double&tkeAna, int t)
     {
       for (int i = 0; i < nx; ++i){
@@ -389,59 +377,33 @@ public:
       }
     }
 
-    /*void boundary()
+    void boundary()
     {
-      std::vector<double> rRan(op.nq, 0.0);
-      std::vector<double> uRan(op.nq, 0.0);
-      std::vector<double> vRan(op.nq, 0.0);
-      std::vector<double> rSlice(op.order+1, 0.0);
-      std::vector<double> uSlice(op.order+1, 0.0);
-      std::vector<double> feqSlice(op.order+1, 0.0);
-      std::vector<double> chaos(2,0.0);
-      op.convert2affinePCE(op.parameter1*u0, op.parameter2*u0,chaos);
-      uSlice[0] = chaos[0];
-      uSlice[1] = chaos[1];
-      op.evaluatePCE(uSlice, uRan);
-
       #pragma omp for collapse(2)
       for (int i = 0; i < nx; ++i){
         for (int j = 0; j < ny; ++j){
           if (material[i][j] == 2){
+            // bounce back
             for (int k = 0; k < 9; ++k){
               int new_i = i+cx[k];
               int new_j = j+cy[k];
               if ((new_i!=-1) && (new_i!=nx) && (new_j!=0) && (new_j!=ny)){
                 if (material[new_i][new_j] == 1){
-                  for (int alpha = 0; alpha < op.order+1; ++alpha){
-                    F[i][j][k][alpha] = F[new_i][new_j][kinv[k]][alpha];
-                  }
+                  F[i][j][k] = F[new_i][new_j][kinv[k]];
                 }
               }
             }
           }
           else if (material[i][j] == 3){
-            for (int alpha = 0; alpha < op.order + 1; ++alpha) {
-              rSlice[alpha] = rho[i][j-1][alpha];
-              //uSlice[alpha] = u[i][j][alpha];
-              //vSlice[alpha] = v[i][j][alpha];
-            }
-            op.evaluatePCE(rSlice, rRan);
-
+            // moving wall
+            double rhoWall = rho[i][j-1];
             for (int k = 0; k < 9; ++k) {
-              std::vector<double> feqRan(op.nq, 0.0);
-              for (int sample = 0; sample < op.nq; sample++) {
-                feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
-              }
-
-              op.ran2chaos(feqRan, feqSlice);
-              for (int alpha = 0; alpha < op.order + 1; ++alpha) {
-                F[i][j][k][alpha] = feqSlice[alpha] + F[i][j-1][k][alpha] - feq[i][j-1][k][alpha];
-              }
+                F[i][j][k] = equilibrium(rhoWall, u0, 0.0, cx[k], cy[k], w[k]) + F[i][j-1][k] - feq[i][j-1][k];
             }
           }
         }
       }
-    }*/
+    }
 
 };
 

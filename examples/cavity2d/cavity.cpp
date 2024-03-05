@@ -35,14 +35,26 @@ int main( int argc, char* argv[] )
 
     double dx = params.L / params.resolution;
     double dy = params.L / params.resolution;
+    int nx = int(params.lx / dx)+1;
+    int ny = int(params.ly / dy)+1;
 
     double physViscosity = params.physVelocity * params.L / params.Re;
     double tau = 0.5384;
 
     std::vector<std::vector<int>> material(params.resolution+1, std::vector<int>(params.resolution+1, 1));
+
+    for (int i = 0; i < nx; ++i){
+        for (int j = 0; j < ny; ++j){
+            if (j == ny-1)
+            {
+                material[i][j] = 3;
+            }
+            if ((i == 0) || (i == nx-1) || (j == 0)){
+                material[i][j] = 2;
+            }
+        }
+    }
     
-    int nx = int(params.lx / dx)+1;
-    int ny = int(params.ly / dy)+1;
 
     std::string dir = "./data/cavity2d/Nr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/";
     std::string dirAna = "./data/cavity2d/Nr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/final/";
@@ -59,18 +71,6 @@ int main( int argc, char* argv[] )
     std::cout << dir << std::endl;
     std::cout << "finish mkdir" << std::endl;
 
-
-    for (int i = 0; i < nx; ++i){
-        for (int j = 0; j < ny; ++j){
-            if (j == ny-1)
-            {
-                material[i][j] = 3;
-            }
-            if ((i == 0) || (i == nx-1) || (j == 0)){
-                material[i][j] = 2;
-            }
-        }
-    }
     
     sglbm sglbm(dir, "cavity2d", params);
     sglbm.setGeometry(params.L, params.resolution, params.lx, params.ly, material);

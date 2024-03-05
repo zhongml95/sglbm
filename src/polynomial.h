@@ -3,6 +3,7 @@
 #include <vector>
 #include "matrix.h"
 #include "util.h"
+#include <gsl/gsl_integration.h>
 
 
 class polynomial
@@ -57,12 +58,12 @@ public:
             }
         }
         
-        phiRan.resize(order+1);
-        for (int i = 0; i < order+1; ++i)
+        phiRan.resize(nq);
+        for (int k = 0; k < nq; ++k){
         {
-            phiRan[i].resize(nq);
-            for (int k = 0; k < nq; ++k){
-                phiRan[i][k] = 0.0;
+            phiRan[k].resize(order);
+            for (int i = 0; i < order+1; ++i)
+                phiRan[k][i] = 0.0;
             }
         }
         
@@ -104,7 +105,7 @@ public:
             double previousSumPhi = 0.0;
             for (int i = 0; i < order+1; ++i) {
                 for (int j = 0; j < order+1; ++j) {
-                    phiRan[i][k] += polynomialCoeffs[i][j] * std::pow(points[k], j);
+                    phiRan[k][i] += polynomialCoeffs[i][j] * std::pow(points[k], j);
                 }
                 //std::cout << phiRan[i][k] << "\t";
             }
@@ -175,20 +176,18 @@ public:
         }
     }
 
-    void evaluatePCE(std::vector<double> uChaos, std::vector<double>&uRan)
+    void chaos2ran(const std::vector<double>& uChaos, std::vector<double>&uRan)
     {
         
         std::vector<double> _ran(nq, 0.0);
 
         for (int k = 0; k < nq; ++k){
-            for (int i = 0; i < order+1; ++i){
-                _ran[k] += uChaos[i] * phiRan[i][k];
-            }
+            _ran[k] = std::inner_product(uChaos.begin(), uChaos.end(), phiRan[k].begin(), 0.0);
         }
         uRan.swap(_ran);
     }
 
-    void ran2chaos(std::vector<double> ran, std::vector<double>&chaos)
+    void ran2chaos(const std::vector<double>& ran, std::vector<double>&chaos)
     {    
         std::vector<double> _chaos(order+1, 0.0);
 
@@ -201,7 +200,7 @@ public:
         chaos.swap(_chaos);
     }
 
-    void chaos_product(std::vector<double> chaos1, std::vector<double> chaos2, std::vector<double>&production)
+    void chaos_product(const std::vector<double>& chaos1, const std::vector<double>& chaos2, std::vector<double>&production)
     {
         for (int i = 0; i < order + 1; ++i) {
             double sum = 0.0;
@@ -335,8 +334,9 @@ public:
             }
         }
         else if (points_weights_method == 1) {
-            std::cout << "scipy" << std::endl;
-            get_polynomial_quadrature_points_and_weights_from_scipy();
+            std::cout << "GSL" << std::endl;
+            points = get_gauss_legendre_points(nq);
+            weights = get_gauss_legendre_weights(nq);
         }
 
         double weights_sum = 0.0;
@@ -412,138 +412,34 @@ public:
         }
     }
 
-    void get_polynomial_quadrature_points_from_scipy()
-    {
-        // Get the directory of the executable and append "/src/"
-        std::string srcPath = findRelativePathToSrc();
+    // Function to return Gauss-Legendre quadrature points
+    std::vector<double> get_gauss_legendre_points(size_t n) {
+        std::vector<double> points;
+        gsl_integration_glfixed_table *table = gsl_integration_glfixed_table_alloc(n);
 
-        // Add the src directory to sys.path
-        PyObject* sysPath = PySys_GetObject("path");
-        PyList_Append(sysPath, PyUnicode_FromString(srcPath.c_str()));
-
-        // Import the util module
-        PyObject* moduleName = PyUnicode_FromString("util");
-        PyObject* utilModule = PyImport_Import(moduleName);
-        
-        if (!utilModule) {
-            PyErr_Print();
-            std::cerr << "Failed to import util module" << std::endl;
-            return;
+        double xi, wi;
+        for (size_t i = 0; i < n; ++i) {
+            gsl_integration_glfixed_point(-1.0, 1.0, i, &xi, &wi, table);
+            points.push_back(xi);
         }
 
-        PyObject* func;
-        // Get the function from the module
-        if (polynomialType == 0) {
-            func = PyObject_GetAttrString(utilModule, "get_legendre_quadrature_points");
-        }
-        else if (polynomialType == 1) {
-            func = PyObject_GetAttrString(utilModule, "get_hermite_quadrature_points");
-        }
-        
-        if (!func || !PyCallable_Check(func)) {
-            PyErr_Print();
-            std::cerr << "Failed to get Python function" << std::endl;
-            Py_DECREF(utilModule);
-            return;
-        }
-
-    // Prepare arguments and call the function
-        PyObject* args = PyTuple_Pack(1, PyLong_FromLong(nq));
-        PyObject* resultList = PyObject_CallObject(func, args);
-        Py_DECREF(args);
-        Py_DECREF(func);
-        Py_DECREF(utilModule);
-
-        if (!resultList || !PyList_Check(resultList)) {
-            PyErr_Print();
-            std::cerr << "Function call failed or did not return a list" << std::endl;
-            Py_XDECREF(resultList);
-            Py_Finalize();
-            return;
-        }
-
-        // Extract points from the Python list and store them in outPoints
-        Py_ssize_t size = PyList_Size(resultList);
-        for (Py_ssize_t i = 0; i < size; ++i) {
-            PyObject* item = PyList_GetItem(resultList, i); // Borrowed reference, no need to DECREF
-            if (PyFloat_Check(item)) {
-                double value = PyFloat_AsDouble(item);
-                points[i] = value;
-            }
-        }
-
-        Py_DECREF(resultList);
+        gsl_integration_glfixed_table_free(table);
+        return points;
     }
 
-    void get_polynomial_quadrature_weights_from_scipy() {
-        // Get the directory of the executable and append "/src/"
-        std::string srcPath = findRelativePathToSrc();
+    // Function to return Gauss-Legendre quadrature weights
+    std::vector<double> get_gauss_legendre_weights(size_t n) {
+        std::vector<double> weights;
+        gsl_integration_glfixed_table *table = gsl_integration_glfixed_table_alloc(n);
 
-        std::cout << "srcPath: " << srcPath << std::endl;
-
-        // Add the src directory to sys.path
-        PyObject* sysPath = PySys_GetObject("path");
-        PyList_Append(sysPath, PyUnicode_FromString(srcPath.c_str()));
-
-        // Import the util module
-        PyObject* moduleName = PyUnicode_FromString("util");
-        PyObject* utilModule = PyImport_Import(moduleName);
-        if (!utilModule) {
-            PyErr_Print();
-            std::cerr << "Failed to import util module" << std::endl;
-            return;
+        double xi, wi;
+        for (size_t i = 0; i < n; ++i) {
+            gsl_integration_glfixed_point(-1.0, 1.0, i, &xi, &wi, table);
+            weights.push_back(wi);
         }
 
-        PyObject* func;
-        // Get the function from the module
-        if (polynomialType == 0) {
-            func = PyObject_GetAttrString(utilModule, "get_legendre_quadrature_weights");
-        }
-        else if (polynomialType == 1) {
-            func = PyObject_GetAttrString(utilModule, "get_Hermite_quadrature_weights");
-        }
-        
-        if (!func || !PyCallable_Check(func)) {
-            PyErr_Print();
-            std::cerr << "Failed to get Python function" << std::endl;
-            Py_DECREF(utilModule);
-            return;
-        }
-
-// Prepare arguments and call the function
-    PyObject* args = PyTuple_Pack(1, PyLong_FromLong(nq));
-    PyObject* resultList = PyObject_CallObject(func, args);
-    Py_DECREF(args);
-    Py_DECREF(func);
-    Py_DECREF(utilModule);
-
-    if (!resultList || !PyList_Check(resultList)) {
-        PyErr_Print();
-        std::cerr << "Function call failed or did not return a list" << std::endl;
-        Py_XDECREF(resultList);
-        Py_Finalize();
-        return;
-    }
-
-    // Extract points from the Python list and store them in outPoints
-    Py_ssize_t size = PyList_Size(resultList);
-    for (Py_ssize_t i = 0; i < size; ++i) {
-        PyObject* item = PyList_GetItem(resultList, i); // Borrowed reference, no need to DECREF
-        if (PyFloat_Check(item)) {
-            double value = PyFloat_AsDouble(item);
-            weights[i] = value;
-        }
-    }
-
-    Py_DECREF(resultList);
-}
-    
-    void get_polynomial_quadrature_points_and_weights_from_scipy()
-    {        
-        Py_Initialize();
-        get_polynomial_quadrature_points_from_scipy();
-        get_polynomial_quadrature_weights_from_scipy();
-        Py_Finalize();
+        gsl_integration_glfixed_table_free(table);
+        return weights;
     }
 
     void convert2affinePCE(double para1, double para2, std::vector<double>&domain)

@@ -7,10 +7,10 @@ INCLUDES = -I/home/zhongml95/gsl/include
 LIBS = -lgsl -lgslcblas # Link against GSL libraries
 
 # Target executable
-TARGET = tgv2d
+TARGET = cavity2d
 
 # Source files
-SOURCES = tgv2d.cpp
+SOURCES = cavity2d.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target

@@ -1,9 +1,9 @@
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
 #include <iostream>
 #include <cmath>
 #include <vector>
 #include <iomanip>
+#include <algorithm>
+#include <numeric> // for std::inner_product
 
 
 

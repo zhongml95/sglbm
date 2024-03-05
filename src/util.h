@@ -77,16 +77,17 @@ struct Parameters {
     size_t points_weights_method;
     unsigned int order;
     unsigned int nq;
-    int polynomialType;
+    std::vector<int> polynomialType;
     int resolution;
-    double parameter1;
-    double parameter2;
+    std::vector<double> parameter1;
+    std::vector<double> parameter2;
     double L;
     double lx;
     double ly;
     double Re;
     double physVelocity;
 };
+
 
 bool readParameters(const std::string& filePath, Parameters& params) {
     std::ifstream file(filePath);
@@ -105,21 +106,111 @@ bool readParameters(const std::string& filePath, Parameters& params) {
         }
     }
 
-    // Assuming all keys exist and are correctly formatted in the file
+    // Parse scalar values directly
     params.points_weights_method = std::stoul(paramMap["points_weights_method"]);
     params.order = std::stoul(paramMap["order"]);
     params.nq = std::stoul(paramMap["nq"]);
-    params.polynomialType = std::stoi(paramMap["polynomialType"]);
     params.resolution = std::stoi(paramMap["resolution"]);
-    params.parameter1 = std::stod(paramMap["parameter1"]);
-    params.parameter2 = std::stod(paramMap["parameter2"]);
     params.L = std::stod(paramMap["L"]);
     params.lx = std::stod(paramMap["lx"]);
     params.ly = std::stod(paramMap["ly"]);
     params.Re = std::stod(paramMap["Re"]);
     params.physVelocity = std::stod(paramMap["physVelocity"]);
 
+    // Parse vector values
+    auto parseVectorDouble = [](const std::string& s) -> std::vector<double> {
+        std::vector<double> result;
+        std::istringstream iss(s);
+        std::string item;
+        while (std::getline(iss, item, ' ')) { // Space-separated
+            result.push_back(std::stod(item));
+        }
+        return result;
+    };
+
+    auto parseVectorInt = [](const std::string& s) -> std::vector<int> {
+        std::vector<int> result;
+        std::istringstream iss(s);
+        std::string item;
+        while (std::getline(iss, item, ' ')) { // Space-separated
+            if (!item.empty()) { // Check if the item is not just whitespace
+                result.push_back(std::stoi(item));
+            }
+        }
+        return result;
+    };
+
+    // Adjusted for parsing space-separated values correctly
+    params.polynomialType = parseVectorInt(paramMap["polynomialType"]);
+    params.parameter1 = parseVectorDouble(paramMap["parameter1"]);
+    params.parameter2 = parseVectorDouble(paramMap["parameter2"]);
+
     return true;
 }
 
+// Utility function to check if a file exists.
+bool fileExists(const std::string& name) {
+    std::ifstream f(name.c_str());
+    return f.good();
+}
+
+void saveVector1D(const std::string& filePath, const std::vector<double>& vec) {
+    std::ofstream out(filePath, std::ios::binary);
+    if (!out.is_open()) throw std::runtime_error("Cannot open file for writing: " + filePath);
+    
+    size_t size = vec.size();
+    out.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    out.write(reinterpret_cast<const char*>(vec.data()), size * sizeof(double));
+}
+
+void readVector1D(const std::string& filePath, std::vector<double>& vec) {
+    std::ifstream in(filePath, std::ios::binary);
+    if (!in.is_open()) throw std::runtime_error("Cannot open file for reading: " + filePath);
+    
+    size_t size;
+    in.read(reinterpret_cast<char*>(&size), sizeof(size));
+    vec.resize(size);
+    in.read(reinterpret_cast<char*>(vec.data()), size * sizeof(double));
+}
+
+void saveVector3D(const std::string& filePath, const std::vector<std::vector<std::vector<double>>>& vec) {
+    std::ofstream out(filePath, std::ios::binary);
+    if (!out.is_open()) throw std::runtime_error("Cannot open file for writing: " + filePath);
+
+    size_t outerSize = vec.size();
+    out.write(reinterpret_cast<const char*>(&outerSize), sizeof(outerSize));
+    
+    for (const auto& midVec : vec) {
+        size_t midSize = midVec.size();
+        out.write(reinterpret_cast<const char*>(&midSize), sizeof(midSize));
+        
+        for (const auto& innerVec : midVec) {
+            size_t innerSize = innerVec.size();
+            out.write(reinterpret_cast<const char*>(&innerSize), sizeof(innerSize));
+            out.write(reinterpret_cast<const char*>(innerVec.data()), innerSize * sizeof(double));
+        }
+    }
+}
+
+void readVector3D(const std::string& filePath, std::vector<std::vector<std::vector<double>>>& vec) {
+    std::ifstream in(filePath, std::ios::binary);
+    if (!in.is_open()) throw std::runtime_error("Cannot open file for reading: " + filePath);
+    
+    size_t outerSize;
+    in.read(reinterpret_cast<char*>(&outerSize), sizeof(outerSize));
+    vec.resize(outerSize);
+    
+    for (auto& midVec : vec) {
+        size_t midSize;
+        in.read(reinterpret_cast<char*>(&midSize), sizeof(midSize));
+        midVec.resize(midSize);
+        
+        for (auto& innerVec : midVec) {
+            size_t innerSize;
+            in.read(reinterpret_cast<char*>(&innerSize), sizeof(innerSize));
+            innerVec.resize(innerSize);
+            in.read(reinterpret_cast<char*>(innerVec.data()), innerSize * sizeof(double));
+        }
+    }
+}
 
