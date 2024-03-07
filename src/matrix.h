@@ -224,3 +224,4 @@ bool isConverging(const std::vector<std::vector<double>>& A, const std::vector<s
     former_norm = norm;
     return converge;
 }
+

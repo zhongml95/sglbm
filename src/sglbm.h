@@ -150,12 +150,15 @@ public:
     lx = _lx;
     ly = _ly;
     
-    nx = int(lx / dx) + 1;
-    ny = int(ly / dy) + 1;
+    nx = N + 1;
+    ny = N + 1;
 
-    if (exm == "tgv"){
-      nx = int(lx / dx);
-      ny = int(ly / dy);
+    if (exm == "tgv" || exm == "stgv"){
+      // nx = int(lx / dx);
+      // ny = int(ly / dy);
+
+      dx = 2 * M_PI * L / N;
+      dy = 2 * M_PI * L / N;
     }
 
     material.resize(nx);
@@ -222,6 +225,9 @@ public:
     std::cout << "u0 = " << u0 << std::endl;
     std::cout << "converstionVelocity = " << conversionVelocity << std::endl;
     std::cout << "converstionViscosity = " << conversionViscosity << std::endl;
+    std::cout << "dx = " << dx << std::endl;
+    std::cout << "dt = " << dt << std::endl;
+    std::cout << "Ma = " << u0 * std::sqrt(3.0) << std::endl;
 
     u.resize(nx);
     v.resize(nx);
@@ -370,9 +376,9 @@ public:
               double x = i * dx;
               double y = j * dy;
 
-              rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
-              uChaos[0] = -u0 * std::cos(x) * std::sin(y);
-              vChaos[0] = u0 * std::sin(x) * std::cos(y);
+              rChaos[0] = 1.0;// - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
+              uChaos[0] = u0 * std::sin(x) * std::cos(y);
+              vChaos[0] = -u0 * std::cos(x) * std::sin(y);
               std::vector<double> u0Chaos(ops.random_number_dimension + 1, 0.0);
 
               if (alpha <= ops.random_number_dimension && alpha != 0) {
@@ -390,9 +396,6 @@ public:
                 }
                 else if (random_id == 2) {
                   u0Chaos[0] += u0 * chaos[0] * std::cos(x) * std::sin(y);
-                  // std::cout << std::cos(x) * std::sin(y) << std::endl;
-                  // std::cout << u0 * chaos[1] << std::endl;
-                  // std::cout << u0 * chaos[1] * std::cos(x) * std::sin(y) << std::endl;
                   u0Chaos[alpha] = u0 * chaos[1] * std::cos(x) * std::sin(y);
                 }
                 else if (random_id == 3) {
@@ -483,7 +486,7 @@ public:
 
   }
 
-    void collision()
+  void collision()
   {
 
     //std::vector<double> omegaSlice(ops.No + 1, 0.0);
@@ -535,7 +538,7 @@ public:
         }
       }
 
-      Q[i] = (sum1 - sum2) / ops.t2Product[i];
+      Q[i] = (sum1 - sum2) * ops.t2Product_inv[i];
     }
   }
 
@@ -556,9 +559,12 @@ public:
         for (int k = 0; k < 9; ++k) {
           int ii = (i + nx + cx[k]) % (nx);
           int jj = (j + ny + cy[k]) % (ny);
-          for (int alpha = 0; alpha < ops.No; ++alpha) {
-            f[ii][jj][k][alpha] = F[i][j][k][alpha];
-          }
+
+          f[ii][jj][k] = F[i][j][k];
+
+          // for (int alpha = 0; alpha < ops.No; ++alpha) {
+          //   f[ii][jj][k][alpha] = F[i][j][k][alpha];
+          // }
         }
       }
     }
@@ -598,8 +604,10 @@ public:
           for (int k = 0; k < 9; ++k) {
             rChaos[alpha] += f[i][j][k][alpha];
           }
-          rho[i][j][alpha] = rChaos[alpha];
+          //rho[i][j][alpha] = rChaos[alpha];
         }
+        rho[i][j] = rChaos;
+
         ops.chaos2ran(rChaos, rRan);
 
         if (material[i][j] == 1) {
@@ -621,10 +629,8 @@ public:
           ops.ran2chaos(uRan, uChaos);
           ops.ran2chaos(vRan, vChaos);
 
-          for (int alpha = 0; alpha < ops.No; ++alpha) {
-            u[i][j][alpha] = uChaos[alpha];
-            v[i][j][alpha] = vChaos[alpha];
-          }
+          u[i][j] = uChaos;
+          v[i][j] = vChaos;
         }
         else if (material[i][j] == 2)
         {
@@ -671,9 +677,10 @@ public:
             }
 
             ops.ran2chaos(feqRan, feqSlice);
-            for (int alpha = 0; alpha < ops.No; ++alpha) {
-              feq[i][j][k][alpha] = feqSlice[alpha];
-            }
+            // for (int alpha = 0; alpha < ops.No; ++alpha) {
+            //   feq[i][j][k][alpha] = feqSlice[alpha];
+            // }
+            feq[i][j][k] = feqSlice;
             feqRan.clear();
           #endif
         }
@@ -791,42 +798,47 @@ public:
     }      
     outputFileV.close();
 
+    std::string filenameUAll = dir + "final/uAll.dat";
+    std::ofstream outputFileUAll(filenameUAll);
+
+    for (int i = 0; i < nx; ++i) {
+      for (int j = 0; j < ny; ++j) {
+        for (int alpha = 0; alpha < ops.No; ++alpha) {
+          outputFileUAll << i * dx << "\t" << j * dy << "\t" << ops.mean(u[i][j]) * conversionVelocity << "\t" << ops.std(u[i][j]) * conversionVelocity << "\n";
+        }
+      }
+    }
+    outputFileUAll.close();
+
+    std::string filenameVAll = dir + "final/vAll.dat";
+    std::ofstream outputFileVAll(filenameVAll);
+
+    for (int i = 0; i < nx; ++i) {
+      for (int j = 0; j < ny; ++j) {
+        for (int alpha = 0; alpha < ops.No; ++alpha) {
+          outputFileVAll << i * dx << "\t" << j * dy << "\t" << ops.mean(v[i][j]) * conversionVelocity << "\t" << ops.std(v[i][j]) * conversionVelocity << "\n";
+        }
+      }
+    }
+    outputFileVAll.close();
+
   }
     
   void totalKineticEnergy(std::vector<double>&tke, double&tkeAna, int t)
     {
-      std::vector<double> u2(ops.No, 0.0);
-      std::vector<double> v2(ops.No, 0.0);
-      std::vector<double> uSlice(ops.No, 0.0);
-      std::vector<double> vSlice(ops.No, 0.0);
+      std::vector<double> u2Chaos(ops.No, 0.0);
+      std::vector<double> v2Chaos(ops.No, 0.0);
       std::vector<double> tkeChaos(ops.No, 0.0);
       
-      // std::vector<double> u2Ran(ops.total_nq, 0.0);
-      // std::vector<double> v2Ran(ops.total_nq, 0.0);
-      // std::vector<double> tkeRan(ops.total_nq, 0.0);
         for (int i = 0; i < nx; ++i){
             for (int j = 0; j < ny; ++j){
-                for (int alpha = 0; alpha < ops.No; ++alpha) {
-                    uSlice[alpha] = u[i][j][alpha];
-                    vSlice[alpha] = v[i][j][alpha];
-                }
 
-                ops.chaos_product(uSlice, uSlice, u2);
-                ops.chaos_product(vSlice, vSlice, v2);
+                ops.chaos_product(u[i][j], u[i][j], u2Chaos);
+                ops.chaos_product(v[i][j], v[i][j], v2Chaos);
 
-                // ops.chaos2ran(u2, u2Ran);
-                // ops.chaos2ran(v2, v2Ran);
-
-                // for (int sample = 0; sample < ops.total_nq; ++sample) {
-                //   tkeRan[sample] = ((u2Ran[sample] + v2Ran[sample]) *  2 / (nx*ny*u0*u0));
-                // }
-
-                // std::cout << "tkeRan: " << tkeRan[0] << std::endl;
-
-                // ops.ran2chaos(tkeRan, tkeChaos);
 
                 for (int alpha = 0; alpha < ops.No; ++alpha) {
-                    tke[alpha] += ((u2[alpha] + v2[alpha]) *  2 / (nx*ny*u0*u0));
+                    tke[alpha] += ((u2Chaos[alpha] + v2Chaos[alpha]) *  0.5 / (nx*ny*u0*u0));
                     //tke[alpha] += tkeChaos[alpha];
                 }
                 
@@ -836,7 +848,7 @@ public:
                 double damp = std::exp(-k2*physViscosity*t);
                 double uAna = -u0 * std::cos(x) * std::sin(y) * damp;
                 double vAna =  u0 * std::sin(x) * std::cos(y) * damp;
-                tkeAna += ((uAna * uAna + vAna * vAna)*2/(nx*ny*u0*u0));
+                tkeAna += ((uAna * uAna + vAna * vAna) * 0.5/(nx*ny*u0*u0));
 
             }
         }

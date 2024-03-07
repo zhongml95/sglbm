@@ -108,9 +108,12 @@ public:
     // std::vector<std::vector<double>> weights_tensor;
     std::vector<double> points;
     std::vector<double> weights;
+    std::vector<double> weights_multiplied;
+    std::vector<std::vector<int>> points_weights_index_list;
     
     // std::vector<std::vector<double>> phiRan;
     std::vector<double> phiRan;
+    std::vector<double> phiRan_T;
     std::vector<double> t2Product;
     std::vector<double> t2Product_inv;
     std::vector<double> t3Product;
@@ -132,34 +135,24 @@ public:
         total_nq = std::pow(nq, random_number_dimension);
         
         phiRan.resize(total_nq * No, 0.0);
-        //std::cout << "size of phiRan = " << phiRan.size() << std::endl;
-        // for (int k = 0; k < total_nq; ++k)
-        // {
-        //     phiRan[k].resize(No);
-        //     for (int i = 0; i < No; ++i){
-        //         phiRan[k][i] = 0.0;
-        //     }
-        // }
+        phiRan_T.resize(total_nq * No, 0.0);
         
         t2Product.resize(No);
         t2Product_inv.resize(No);
         t3Product.resize(No*No*No);
-        // t3Product.resize(No);
-        // for (int i = 0; i < No; ++i)
-        // {
-        //     t3Product[i].resize(No);
-        //     for (int j = 0; j < No; ++j)
-        //     {
-        //         t3Product[i][j].resize(No);
-        //     }
-        // }
 
         points.resize(random_number_dimension * nq);
         weights.resize(random_number_dimension * nq);
+
+        points_weights_index_list.resize(total_nq);
+
+        for (int i = 0; i < total_nq; ++i) {
+            points_weights_index_list[i].resize(random_number_dimension);
+            points_weights_index_list[i] = find_index(i, random_number_dimension, nq);
+        }
+
         polynomial_coefficients.resize(random_number_dimension);
         for (int i = 0; i < random_number_dimension; ++i) {
-            // points[i].resize(nq);
-            // weights[i].resize(nq);
             polynomial_coefficients[i].resize(No);
             for (int j = 0; j < No; j++) {
                 polynomial_coefficients[i][j].resize(No);
@@ -178,19 +171,15 @@ public:
             polynomial_coefficients[i] = op.polynomialCoeffs;
         }
 
-        // points_tensor.resize(random_number_dimension);
-        // weights_tensor.resize(random_number_dimension);
-        // //std::cout << "points" << std::endl;
-        // for (int i = 0; i < random_number_dimension; ++i) {
-        //     points_tensor[i].resize(total_nq);
-        //     weights_tensor[i].resize(total_nq);
-        //     for(int j = 0; j < total_nq; ++j) {
-        //         std::vector<int> index = find_index(j, random_number_dimension, nq);
-        //         points_tensor[i][j] = points[i][index[i]];
-        //         weights_tensor[i][j] = weights[i][index[i]];
-        //         //std::cout << points_tensor[i][j] << std::endl;
-        //     }
-        // }
+
+        weights_multiplied.resize(total_nq);
+        for (int k = 0; k < total_nq; ++k) {
+            weights_multiplied[k] = 1.0;
+            for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
+                weights_multiplied[k] *= weights[n_weights * nq + points_weights_index_list[k][n_weights]];
+            }
+        }
+
         evaluatePhiRan();
         tensor();
 
@@ -245,8 +234,9 @@ public:
     void evaluatePhiRan() {        
         for (int k = 0; k < total_nq; ++k) {
             for (int i = 0; i < No; ++i) {
-                std::vector<int> idx = find_index(k, random_number_dimension, nq);
-                phiRan[k * No + i] = evaluate(i, idx);
+                // std::vector<int> idx = find_index(k, random_number_dimension, nq);
+                phiRan[k * No + i] = evaluate(i, points_weights_index_list[k]);
+                phiRan_T[i * total_nq + k] = phiRan[k * No + i];
             }
         }
     }
@@ -286,12 +276,12 @@ public:
             for (int i = 0; i < No; ++i) {
                 for (int j = 0; j < No; ++j) {
                     for (int m = 0; m < total_nq; ++m) {
-                        std::vector<int> index = find_index(m, random_number_dimension, nq);
+                        // std::vector<int> index = find_index(m, random_number_dimension, nq);
                         double pi_weights = 1.0;
                         for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
-                            pi_weights *= weights[n_weights * nq + index[n_weights]];
+                            pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
                         }
-                        tensor2d[i][j] += evaluate(i, index) * evaluate(j, index) * pi_weights;
+                        tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * pi_weights;
                     }
                 }
             }
@@ -324,12 +314,12 @@ public:
                 for (int j = 0; j < No; ++j) {
                     for (int k = 0; k < No; k++) {
                         for (int m = 0; m < total_nq; ++m) {
-                            std::vector<int> index = find_index(m, random_number_dimension, nq);
+                            // std::vector<int> index = find_index(m, random_number_dimension, nq);
                             double pi_weights = 1.0;
                             for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
-                                pi_weights *= weights[n_weights * nq + index[n_weights]];
+                                pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
                             }
-                            t3Product[i*No*No + j*No + k] += evaluate(i, index) * evaluate(j, index) * evaluate(k, index) * pi_weights;
+                            t3Product[i*No*No + j*No + k] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * evaluate(k, points_weights_index_list[m]) * pi_weights;
                         }
                     }
                 }
@@ -339,38 +329,37 @@ public:
         }
     }
 
-    void chaos2ran(const std::vector<double>& u, std::vector<double>&uRan)
+    void chaos2ran(const std::vector<double>& chaos, std::vector<double>&Ran)
     {
         std::vector<double> _ran(total_nq, 0.0);
 
         for (int k = 0; k < total_nq; k++) {
             auto startIt = phiRan.begin() + k * No;
-            _ran[k] = std::inner_product(u.begin(), u.end(), startIt, 0.0);
+            _ran[k] = std::inner_product(chaos.begin(), chaos.end(), startIt, 0.0);
         }
-        uRan.swap(_ran);
+        Ran.swap(_ran);
     }
 
     void ran2chaos(const std::vector<double>& ran, std::vector<double>&chaos)
     {    
-        std::vector<double> _chaos(No, 0.0);
+        //std::vector<double> _chaos(No, 0.0);
         std::vector<std::vector<int>> precomputedIndices(total_nq);
-        std::vector<double> precomputedWeights(total_nq, 1.0);
+        std::vector<double> weighted_ran(total_nq, 1.0);
 
         // Precompute indices and weights
         for (int k = 0; k < total_nq; ++k) {
-            precomputedIndices[k] = find_index(k, random_number_dimension, nq);
-            for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
-                precomputedWeights[k] *= weights[n_weights * nq + precomputedIndices[k][n_weights]];
-            }
+            weighted_ran[k] = weights_multiplied[k] * ran[k];
         }
+
+        std::vector<double> temperate_phiRan(total_nq);
 
         // Main computation
         for (int i = 0; i < No; ++i) {
-            for (int k = 0; k < total_nq; ++k) {
-                _chaos[i] += precomputedWeights[k] * ran[k] * phiRan[k*No + i] * t2Product_inv[i];
-            }
+            auto startIt = phiRan_T.begin() + i * total_nq;
+            chaos[i] = std::inner_product(weighted_ran.begin(), weighted_ran.end(), startIt, 0.0);
+            chaos[i] *= t2Product_inv[i];
         }
-        chaos.swap(_chaos);
+        //chaos.swap(_chaos);
     }
 
     void chaos_product(const std::vector<double>& chaos1, const std::vector<double>& chaos2, std::vector<double>&production)
@@ -421,7 +410,7 @@ public:
     double std(const std::vector<double>& chaos)
     {
         double sum = 0.0;
-        for (int i = 1; i < order+1; ++i){
+        for (int i = 1; i < No; ++i){
             sum += t2Product[i] * chaos[i] * chaos[i];
         }
         return std::sqrt(sum);

@@ -16,11 +16,18 @@ int main( int argc, char* argv[] )
     // Call readParameters to populate the params instance
     readParameters("./parameters.dat", params);
 
-    double dx = params.L / params.resolution;
-    double dy = params.L / params.resolution;
+    double dx = 2 * M_PI * params.L / params.resolution;
+    double dy = 2 * M_PI * params.L / params.resolution;
+
+    double dt = dx / (params.physVelocity / (params.Ma / std::sqrt(3)));
+
+    double conversionViscosity = dx * dx  / dt;
 
     double physViscosity = params.physVelocity * params.L / params.Re;
-    double tau = 3 * physViscosity + 0.5;
+
+    double tau = physViscosity / conversionViscosity * 3 + 0.5;
+     
+
     std::vector<std::vector<int>> material(params.resolution+1, std::vector<int>(params.resolution+1, 1));
     
     //std::string dir = "./data/tgv/t5/ViscosityNr" + std::to_string(order) + "Nq" + std::to_string(nq) + "N" + std::to_string(resolution) + "/";
@@ -50,8 +57,9 @@ int main( int argc, char* argv[] )
 
 
     std::cout << "start iteration" << std::endl;
-    double td = 1.0 / (sglbm.physViscosity * (dx * dx + dy * dy));
-    std::cout << "td: " << td << std::endl;
+    double maxPhysT = 30.0;
+    int maxIter = maxPhysT / dt;
+    std::cout << "maxIter: " << maxIter << std::endl;
     int count = 0;
     //std::clock_t c_start = std::clock();
     double start = omp_get_wtime();
@@ -70,13 +78,17 @@ int main( int argc, char* argv[] )
     omp_set_num_threads(cores);
     std::cout << "num Threads: " << cores << std::endl;
 #pragma omp parallel 
-    for (int i = 1; i < int(td * 0.5); ++i) {
-    //for (int i = 1; i < 3; ++i) {
+    for (int i = 0; i < maxIter; ++i) {
       sglbm.collision();
-      //sglbm.boundary();
-      sglbm.streaming();
-      sglbm.reconstruction(); 
-
+      sglbm.streaming();      
+      // #pragma omp single
+      // {
+      //     end = omp_get_wtime();
+          sglbm.reconstruction();    
+      
+      //     std::cout << "reconstruction CPI time used: " << end - start << "s" << std::endl;   
+      //     start = end;
+      // }
 #pragma omp single
       {
         if (i % 100 == 0) {
@@ -96,9 +108,8 @@ int main( int argc, char* argv[] )
       }
       count = i;
     }
-    count = int(td * 0.5) - 1;
     end = omp_get_wtime();
-    sglbm.output(dir, count, end - start_0);
+    sglbm.output(dir, maxIter, end - start_0);
 
     err = calc_tke_error(sglbm, count);
 

@@ -86,6 +86,8 @@ struct Parameters {
     double ly;
     double Re;
     double physVelocity;
+    double tau;
+    double Ma;
 };
 
 
@@ -116,6 +118,8 @@ bool readParameters(const std::string& filePath, Parameters& params) {
     params.ly = std::stod(paramMap["ly"]);
     params.Re = std::stod(paramMap["Re"]);
     params.physVelocity = std::stod(paramMap["physVelocity"]);
+    params.tau = std::stod(paramMap["tau"]);
+    params.Ma = std::stod(paramMap["Ma"]);
 
     // Parse vector values
     auto parseVectorDouble = [](const std::string& s) -> std::vector<double> {

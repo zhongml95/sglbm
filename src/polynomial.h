@@ -43,6 +43,7 @@ public:
         //alpha.resize(order+1);
         //beta.resize(order+1);
 
+
         for (int i = 0; i < order+1; ++i)
         {
             phi[i].resize(nq);
@@ -61,12 +62,13 @@ public:
         phiRan.resize(nq);
         for (int k = 0; k < nq; ++k){
         {
-            phiRan[k].resize(order);
+            phiRan[k].resize(order+1);
             for (int i = 0; i < order+1; ++i)
                 phiRan[k][i] = 0.0;
             }
         }
         
+        std::cout << "here?" << std::endl;
         t2Product.resize(order+1);
         t3Product.resize(order+1);
         for (int i = 0; i < order+1; ++i)

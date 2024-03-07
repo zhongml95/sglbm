@@ -5,16 +5,16 @@ double calcError(sglbm sglbm, double&uNorm0){
   double uNorm1 = 0.0;
   for (int i = 0; i < sglbm.nx; ++i){
     for (int j = 0; j < sglbm.ny; j++){
-      std::vector<double> uSlice(sglbm.op.order+1, 0.0);
-      std::vector<double> vSlice(sglbm.op.order+1, 0.0);
-      for (int alpha = 0; alpha < sglbm.op.order+1; ++alpha){
+      std::vector<double> uSlice(sglbm.ops.order+1, 0.0);
+      std::vector<double> vSlice(sglbm.ops.order+1, 0.0);
+      for (int alpha = 0; alpha < sglbm.ops.order+1; ++alpha){
         uSlice[alpha] = sglbm.u[i][j][alpha];
         vSlice[alpha] = sglbm.v[i][j][alpha];
       }
       double uMean = 0.0;
       double vMean = 0.0;
-      uMean = sglbm.op.mean(uSlice);
-      vMean = sglbm.op.mean(vSlice);
+      uMean = sglbm.ops.mean(uSlice);
+      vMean = sglbm.ops.mean(vSlice);
       uNorm1 += (uMean * uMean + vMean * vMean);
     }
   }

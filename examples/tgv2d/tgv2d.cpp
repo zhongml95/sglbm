@@ -3,10 +3,10 @@
 
 double calc_tke_error(sglbm sglbm, int count) {
   
-  std::vector<double> tke(sglbm.op.order+1,0.0);
+  std::vector<double> tke(sglbm.ops.order+1,0.0);
   double tkeAna = 0.0;
   sglbm.totalKineticEnergy(tke, tkeAna, count);
-  return std::abs((sglbm.op.mean(tke)-tkeAna) / tkeAna);
+  return std::abs((sglbm.ops.mean(tke)-tkeAna) / tkeAna);
 }
 
 int main( int argc, char* argv[] )
