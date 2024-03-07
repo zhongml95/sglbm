@@ -804,6 +804,7 @@ public:
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int alpha = 0; alpha < ops.No; ++alpha) {
+          outputFileUAll.precision(20);  
           outputFileUAll << i * dx << "\t" << j * dy << "\t" << ops.mean(u[i][j]) * conversionVelocity << "\t" << ops.std(u[i][j]) * conversionVelocity << "\n";
         }
       }
@@ -816,6 +817,7 @@ public:
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int alpha = 0; alpha < ops.No; ++alpha) {
+          outputFileVAll.precision(20);  
           outputFileVAll << i * dx << "\t" << j * dy << "\t" << ops.mean(v[i][j]) * conversionVelocity << "\t" << ops.std(v[i][j]) * conversionVelocity << "\n";
         }
       }
