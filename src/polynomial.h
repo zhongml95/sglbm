@@ -68,7 +68,6 @@ public:
             }
         }
         
-        std::cout << "here?" << std::endl;
         t2Product.resize(order+1);
         t3Product.resize(order+1);
         for (int i = 0; i < order+1; ++i)

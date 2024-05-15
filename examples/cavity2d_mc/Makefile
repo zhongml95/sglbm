@@ -5,10 +5,10 @@ CXX = g++
 CXXFLAGS = -O3 -fopenmp
 
 # Target executable
-TARGET = tgv2d
+TARGET = cavity2d
 
 # Source files
-SOURCES = tgv2d.cpp
+SOURCES = cavity2d.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target

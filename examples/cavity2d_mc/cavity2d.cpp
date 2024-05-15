@@ -1,12 +1,14 @@
-#include "cavity2d.h"
+#include "../cavity2d_lbm/cavity2d.h"
+#include <random>
 
 int main( int argc, char* argv[] )
 {
   Parameters params;
-  bool uq = false;
+  bool uq = true;
 
   // Call readParameters to populate the params instance
   readParameters("./parameters.dat", params);
+  double physVelocity = params.physVelocity;
 
   std::string dir    = "./data/nx" + std::to_string(params.resolution) + "/";
   std::string dirAna = "./data/nx" + std::to_string(params.resolution) + "/final/";
@@ -23,7 +25,16 @@ int main( int argc, char* argv[] )
   std::cout << dir << std::endl;
   std::cout << "finish mkdir" << std::endl;
 
-  simulateCavity2D(params, dir, 0, uq);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dis(params.parameter1[0], params.parameter2[0]);
+
+
+  for ( int i = 0; i < params.nq; i++ ) {
+    params.physVelocity = physVelocity * dis(gen);
+    
+    simulateCavity2D(params, dir, i, uq);
+  }
 
   return 0;
 }

@@ -84,7 +84,7 @@ int main( int argc, char* argv[] )
       // #pragma omp single
       // {
       //     end = omp_get_wtime();
-          sglbm.reconstruction();    
+      sglbm.reconstruction();    
       
       //     std::cout << "reconstruction CPI time used: " << end - start << "s" << std::endl;   
       //     start = end;
@@ -100,7 +100,7 @@ int main( int argc, char* argv[] )
           err = calc_tke_error(sglbm, count);
 
           std::cout << "iter: " << i << " " << "CPI time used: " << end - start << "s" << "\t" << "TKE error " << err << std::endl;
-          sglbm.output(dir, i, end - start);
+          // sglbm.output(dir, i, end - start);
           //c_start = c_end;
           start = end;
           t = 0.0;

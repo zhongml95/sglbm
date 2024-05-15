@@ -86,6 +86,7 @@ struct Parameters {
     double ly;
     double Re;
     double physVelocity;
+    double physViscosity;
     double tau;
     double Ma;
 };
@@ -118,6 +119,7 @@ bool readParameters(const std::string& filePath, Parameters& params) {
     params.ly = std::stod(paramMap["ly"]);
     params.Re = std::stod(paramMap["Re"]);
     params.physVelocity = std::stod(paramMap["physVelocity"]);
+    params.physViscosity = std::stod(paramMap["physViscosity"]);
     params.tau = std::stod(paramMap["tau"]);
     params.Ma = std::stod(paramMap["Ma"]);
 

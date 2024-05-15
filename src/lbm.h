@@ -9,20 +9,21 @@
 #include <omp.h>
 #include <sys/stat.h>
 #include <iomanip>
+#include "util.h"
 
 class lbm{
 public:
   int N;
-  double L;
-  double dx;
-  double dy;
-  double lx;
-  double ly;
   int nx;
   int ny;
+  double L;
+  double dx;
+  double lx;
+  double ly;
   double physVelocity;
   double Re;
   double physViscosity;
+  double physDensity;
   double tau;
   double dt;
   double conversionViscosity;
@@ -31,9 +32,8 @@ public:
   double conversionMass;
   double conversionForce;
   double u0;
-  double omega0;
+  double omega;
   std::string dir;
-  std::string exm;
 
   double cs2 = 1.0 / 3.0;
   std::vector<int> cx = { 0, 1, 0, -1, 0, 1, -1, -1, 1 };
@@ -51,70 +51,57 @@ public:
   std::vector<std::vector<std::vector<double>>> F;
   std::vector<std::vector<std::vector<double>>> feq;
 
-  lbm(std::string _dir, std::string _exm)
+  lbm(std::string _dir)
   {
     dir = _dir;
-    exm = _exm;
   }
 
-  void setGeometry(double _L, double _N, double _lx, double _ly, const std::vector<std::vector<int>>& _material) {
-    std::cout << "start setting geometry" << std::endl;
-    L = _L;
-    N = _N;
-    dx = L / N;
-    dy = L / N;
-    lx = _lx;
-    ly = _ly;
-    
-    nx = int(lx / dx) + 1;
-    ny = int(ly / dy) + 1;
-
-    if (exm == "tgv"){
-      nx = int(lx / dx);
-      ny = int(ly / dy);
-    }
-
-    material.resize(nx);
-    for (int i = 0; i < nx; ++i) {
-      material[i].resize(ny);
-      for (int j = 0; j < ny; ++j) {
-        material[i][j] = _material[i][j];
-      }
-    }
-    std::cout << "finish setting geometry" << std::endl;
-
-  }
-
-  void setFluid(double _physVelocity, double _nu, double _tau)
+  void UnitConverterFromResolutionAndRelaxationTime(Parameters params)
   {
     std::cout << "set simulation parameter" << std::endl;
-    physVelocity = _physVelocity;
-    //Re = _Re;
-    physViscosity = _nu;//physVelocity*L/Re;
-    Re = physVelocity * L / physViscosity;
-    tau = _tau;
+    N = params.resolution;
+    tau = params.tau;
+    L = params.L;
+    physVelocity = params.physVelocity;
+
+    if (params.Re == 0) {
+      physViscosity = params.physViscosity;
+      Re = physVelocity * L / physViscosity;
+    }
+    else if (params.physViscosity == 0){
+      Re = params.Re;
+      physViscosity = physVelocity * L / Re;
+    }
+
+    physDensity = 1.0;
+    
+    dx = L / N;
     dt = (tau - 0.5) / 3.0 * (dx * dx) / physViscosity;
+
     conversionViscosity = dx * dx / dt;
     conversionVelocity = dx / dt;
     conversionDensity = 1.0;
     conversionMass = conversionDensity * dx * dx * dx;
     conversionForce = conversionMass * dx / dt / dt;
     u0 = physVelocity / conversionVelocity;
-    omega0 = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
-  }
+    omega = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
 
-  void initialize()
-  {
-    std::cout << "starting initialization" << std::endl;
-
-    std::cout << "resolution " << ny << std::endl;
-    std::cout << "nx = " << nx << "\t" << "ny = " << ny << std::endl;
+    std::cout << "resolution " << N << std::endl;
     std::cout << "tau = " << tau << std::endl;
     std::cout << "nu = " << physViscosity << std::endl;
     std::cout << "Re = " << Re << std::endl;
     std::cout << "u0 = " << u0 << std::endl;
     std::cout << "converstionVelocity = " << conversionVelocity << std::endl;
     std::cout << "converstionViscosity = " << conversionViscosity << std::endl;
+    std::cout << "dx = " << dx << std::endl;
+    std::cout << "dt = " << dt << std::endl;
+    std::cout << "Ma = " << u0 * std::sqrt(3.0) << std::endl;
+
+  }
+
+  void prepareLattice()
+  {
+    std::cout << "starting initialization" << std::endl;
 
     u.resize(nx);
     v.resize(nx);
@@ -149,32 +136,10 @@ public:
       }
     }
 
-    for (int i = 0; i < nx; ++i) {
-      for (int j = 0; j < ny; ++j) {
-        //TGV            
-          //printf("i: %d, j: %d, alpha: %d, omp_get_thread_num: %d\n", i,j,alpha,omp_get_thread_num()); 
-        if(exm == "tgv") {
-            double x = i * dx;
-            double y = j * dy;
-              
-            rho[i][j] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
-            u[i][j] = -u0 * std::cos(x) * std::sin(y);
-            v[i][j] = u0 * std::sin(x) * std::cos(y);
-          }
-          else if (exm == "cavity2d"){
-            double x = i * dx;
-            double y = j * dy;
-            rho[i][j] = 1.0;
-            //omegaChaos[0] = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
-            if (material[i][j] == 1) {
-              u[i][j] = 0.1 * u0 * (y - 0.5);
-              v[i][j] = 0.1 * u0 * ( -(x - 0.5));
+  }
 
-            }
-          }
-      }
-    }
-    
+  void initializeDistributionFunction() {
+
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
@@ -184,18 +149,17 @@ public:
         }
       }
     }
+
   }
 
-    void collision()
+  void collision()
   {
     //std::cout << "collision start" << std::endl;
 #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
-
-          F[i][j][k] = f[i][j][k] - (f[i][j][k] - feq[i][j][k]) / tau; 
-
+          F[i][j][k] = f[i][j][k] - (f[i][j][k] - feq[i][j][k]) * omega;
         }
       }
     }
@@ -270,115 +234,38 @@ public:
 
   }
 
-  void output(std::string dir, int iter, double time_cost)
-  {
-    std::string filename = dir + std::to_string(iter) + ".dat";
-    std::ofstream outputFile(filename);
-    if (!outputFile) {
-      std::cerr << "Error opening the file: " << filename << std::endl;
-      return;
-    }
-
-    outputFile << "variables = \"X\", \"Y\", \"Rho\", \"Ux\", \"Vy\", \"GEOMETRY\"\n";
-    //outputFile << "variables = \"X\", \"Y\", \"RhoMean\", \"uMean\", \"vMean\", \"RhoStd\", \"uStd\", \"vStd\", \"geometry\"\n";
-    outputFile << "ZONE I = " << nx << ", J = " << ny << ", F = POINT\n";
-
-    for (int i = 0; i < nx; ++i) {
-      for (int j = 0; j < ny; ++j) {
-        double x = i * dx;
-        double y = j * dy;
-        
-        outputFile << x << "\t" << y << "\t" << rho[i][j] << "\t" << u[i][j] * conversionVelocity << "\t" << v[i][j] * conversionVelocity << "\t" << material[i][j] <<  "\n";
-        //outputFile << x << "\t" << y << "\t" << rho[i][j] << "\t" << u[i][j] * conversionVelocity << "\t" << v[i][j] * conversionVelocity << "\t" << u[i][j] * conversionVelocity << "\t" << v[i][j] * conversionVelocity << "\t" << u[i][j] * conversionVelocity  << "\t" << material[i][j] <<  "\n";
-
+    void output(std::string dir, int iter, bool uq)
+    {
+      std::string filename;
+      if (!uq) {
+        filename = dir + "final.dat";
       }
-    }
-    outputFile.close();
-
-    if (exm == "tgv"){
-      std::string filenameTKE = dir + "final/tke.dat";
-      std::ofstream outputFileTKE(filenameTKE, std::ios::app);
-      double tke = 0.0;
-      double tkeAna = 0.0;
-      totalKineticEnergy(tke, tkeAna, iter+1);
-
-      outputFileTKE.precision(20);  
-      outputFileTKE << tke << "\t" << tkeAna << "\t" << time_cost << std::endl;
-      outputFileTKE.close();
-    }
-
-    std::string filenameU = dir + "final/u.dat";
-    std::ofstream outputFileU(filenameU);
-
-    for(int j = 0; j < ny; ++j){
-      int idx = (nx+1)/2;
-      if (exm == "tgv"){
-        idx = nx / 2 + 1;
+      else {
+        filename = dir + std::to_string(iter) + ".dat";
+      }
+      std::ofstream outputFile(filename);
+      if (!outputFile) {
+        std::cerr << "Error opening the file: " << filename << std::endl;
+        return;
       }
 
-      outputFileU.precision(20);  
-      outputFileU << j * dy << "\t" << u[idx][j] * conversionVelocity;
+      outputFile << "variables = \"X\", \"Y\", \"Rho\", \"Ux\", \"Vy\", \"GEOMETRY\"\n";
+      outputFile << "ZONE I = " << nx << ", J = " << ny << ", F = POINT\n";
 
-      if (exm == "tgv"){
-        double x = idx * dx;
-        double y = j * dy;
-        double k2 = dx*dx + dy*dy;
-        double damp = std::exp(-k2*physViscosity*iter);
-        outputFileU << "\t" << -u0 * std::cos(x) * std::sin(y) * damp * conversionVelocity;
+      for (int i = 0; i < nx; ++i) {
+        for (int j = 0; j < ny; ++j) {
+          double x = i * dx;
+          double y = j * dx;
+            
+          outputFile << x << "\t" << y << "\t" << rho[i][j] << "\t" << u[i][j] * conversionVelocity << "\t" << v[i][j] * conversionVelocity << "\t" << material[i][j] <<  "\n";
+        }
       }
-
-      outputFileU << "\n";
-
-    }      
-    outputFileU.close();
-
-    std::string filenameV = dir + "final/v.dat";
-    std::ofstream outputFileV(filenameV);
-
-    for(int i = 0; i < nx; ++i){
-      int idy = (ny+1)/2;      
-      if (exm == "tgv"){
-        idy = ny / 2 + 1;
-      }
-
-      outputFileV.precision(20);  
-      outputFileV << i * dx << "\t" << v[i][idy] * conversionVelocity;
-
-      if (exm == "tgv"){
-        double x = i * dx;
-        double y = idy * dy;
-        double k2 = dx*dx + dy*dy;
-        double damp = std::exp(-k2*physViscosity*iter);
-        outputFileU << "\t" << u0 * std::sin(x) * std::cos(y) * damp * conversionVelocity;
-      }
-
-      outputFileV << "\n";
-    }      
-    outputFileV.close();
+      outputFile.close();
 
   }
 
-
-    void totalKineticEnergy(double&tke, double&tkeAna, int t)
-    {
-      for (int i = 0; i < nx; ++i){
-        for (int j = 0; j < ny; ++j){
-          tke += ((u[i][j] * u[i][j] + v[i][j] * v[i][j]) *  2 / (nx*ny*u0*u0));
-                
-          double x = i * dx;
-          double y = j * dy;
-          double k2 = dx*dx + dy*dy;
-          double damp = std::exp(-k2*physViscosity*t);
-          double uAna = -u0 * std::cos(x) * std::sin(y) * damp;
-          double vAna =  u0 * std::sin(x) * std::cos(y) * damp;
-          tkeAna += ((uAna * uAna + vAna * vAna)*2/(nx*ny*u0*u0));
-
-        }
-      }
-    }
-
-    void boundary()
-    {
+  void boundary()
+  {
       #pragma omp for collapse(2)
       for (int i = 0; i < nx; ++i){
         for (int j = 0; j < ny; ++j){

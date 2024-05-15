@@ -1,14 +1,14 @@
-# Makefile for compiling tgv2d_mc.cpp with OpenMP support
+# Makefile for compiling tgv2d_lbm.cpp with OpenMP support
 
 # Compiler settings
 CXX = g++
 CXXFLAGS = -O3 -fopenmp
 
 # Target executable
-TARGET = tgv2d_mc
+TARGET = tgv2d
 
 # Source files
-SOURCES = tgv2d_mc.cpp
+SOURCES = tgv2d.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target

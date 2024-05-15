@@ -1,16 +1,16 @@
-# Makefile for compiling cavity.cpp with OpenMP and Python3.8 support
+# Makefile for compiling tgv2d.cpp with OpenMP and GSL
 
 # Compiler settings
 CXX = g++
 CXXFLAGS = -O3 -fopenmp
-INCLUDES = -I/usr/include/python3.8/
-LIBS = -lpython3.8
+INCLUDES = -I/home/zhongml95/gsl/include
+LIBS = -lgsl -lgslcblas # Link against GSL libraries
 
 # Target executable
-TARGET = cavity
+TARGET = cavity2d
 
 # Source files
-SOURCES = cavity.cpp
+SOURCES = cavity2d.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target

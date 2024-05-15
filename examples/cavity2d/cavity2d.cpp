@@ -1,6 +1,7 @@
 #include "../../src/sglbm.h"
+#include "../../src/postprocessing_sglbm.h"
 
-double calcError(sglbm sglbm, double&uNorm0){
+double calcError(sglbm sglbm, double&uNorm0) {
   double error = 0.0;
   double uNorm1 = 0.0;
   for (int i = 0; i < sglbm.nx; ++i){
@@ -25,6 +26,70 @@ double calcError(sglbm sglbm, double&uNorm0){
   return error;
 }
 
+void setGeometry(sglbm& sglbm, Parameters params) {
+  std::cout << "start setting geometry" << std::endl;
+
+  sglbm.nx = sglbm.N + 1;
+  sglbm.ny = sglbm.N + 1;
+
+  sglbm.material = std::vector<std::vector<int>>(sglbm.nx, std::vector<int>(sglbm.ny, 1));
+
+  for (int i = 0; i < sglbm.nx; ++i) {
+    for (int j = 0; j < sglbm.ny; ++j) {
+      if (j == sglbm.ny-1) {
+        sglbm.material[i][j] = 3;
+      }
+      
+      if ((i == 0) || (i == sglbm.nx-1) || (j == 0)) {
+        sglbm.material[i][j] = 2;
+      }
+    }
+  }
+
+  std::cout << "finish setting geometry" << std::endl;
+    
+}
+
+void initialize(sglbm& sglbm) {
+
+  sglbm.prepareLattice();
+
+  std::vector<double> omegaChaos(sglbm.ops.No+1, 0.0);
+  omegaChaos[0] = sglbm.omega0;
+  sglbm.omegaChaos = omegaChaos;
+
+  for (int i = 0; i < sglbm.nx; ++i) {
+    for (int j = 0; j < sglbm.ny; ++j) {
+      std::vector<double> uChaos(sglbm.ops.No+1, 0.0);
+      std::vector<double> vChaos(sglbm.ops.No+1, 0.0);
+      std::vector<double> rChaos(sglbm.ops.No+1, 0.0);
+
+      rChaos[0] = 1.0;
+      sglbm.rho[i][j] = rChaos;
+      sglbm.u[i][j] = uChaos;
+      sglbm.v[i][j] = vChaos;
+    }
+  }
+  
+  sglbm.initializeDistributionFunction();
+
+  std::cout << "finish initializing" << std::endl;
+}
+
+void setBoundaryValue(sglbm& sglbm) {
+
+  std::vector<double> chaos(2,0.0);
+  sglbm.ops.convert2affinePCE(sglbm.ops.parameter1[0]*sglbm.u0, sglbm.ops.parameter2[0]*sglbm.u0, sglbm.ops.polynomial_types[0],chaos);
+
+  for (int i = 0; i < sglbm.nx; ++i) {
+    for (int j = 0; j < sglbm.ny; ++j) {
+      if (sglbm.material[i][j] == 3) {
+        sglbm.u[i][j][0] = chaos[0];
+        sglbm.v[i][j][0] = chaos[1];
+      }
+    }
+  }
+}
 
 int main( int argc, char* argv[] )
 {
@@ -32,29 +97,6 @@ int main( int argc, char* argv[] )
     
     // Call readParameters to populate the params instance
     readParameters("./parameters.dat", params);
-
-    double dx = params.L / params.resolution;
-    double dy = params.L / params.resolution;
-    int nx = int(params.lx / dx)+1;
-    int ny = int(params.ly / dy)+1;
-
-    double physViscosity = params.physVelocity * params.L / params.Re;
-    double tau = 0.5384;
-
-    std::vector<std::vector<int>> material(params.resolution+1, std::vector<int>(params.resolution+1, 1));
-
-    for (int i = 0; i < nx; ++i){
-        for (int j = 0; j < ny; ++j){
-            if (j == ny-1)
-            {
-                material[i][j] = 3;
-            }
-            if ((i == 0) || (i == nx-1) || (j == 0)){
-                material[i][j] = 2;
-            }
-        }
-    }
-    
 
     std::string dir = "./data/cavity2d/Nr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/";
     std::string dirAna = "./data/cavity2d/Nr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/final/";
@@ -72,10 +114,14 @@ int main( int argc, char* argv[] )
     std::cout << "finish mkdir" << std::endl;
 
     
-    sglbm sglbm(dir, "cavity2d", params);
-    sglbm.setGeometry(params.L, params.resolution, params.lx, params.ly, material);
-    sglbm.setFluid(params.physVelocity, physViscosity, tau);
-    sglbm.initialize();
+    sglbm sglbm(dir, params);
+    sglbm.UnitConverterFromResolutionAndRelaxationTime(params);
+
+    setGeometry(sglbm, params);
+
+    initialize(sglbm);
+
+    setBoundaryValue(sglbm);
     //sglbm.iteration();
 
     std::cout << "start iteration" << std::endl;
@@ -87,7 +133,7 @@ int main( int argc, char* argv[] )
 
     double t = 0.0, t0, t1;
 
-    sglbm.output(dir, 0, 0);
+    sglbm.output(dir, 0);
 
 
     size_t cores = omp_get_num_procs();
@@ -99,12 +145,10 @@ int main( int argc, char* argv[] )
 
 
 #pragma omp parallel 
-    //for (int i = 1; i < 100000; ++i) {
       while(error > 0.0001) {
-      sglbm.collision();  // parallel for
+      sglbm.collision();
       sglbm.boundary();
       sglbm.streaming();
-      //}
       sglbm.reconstruction(); // parallel for
 #pragma omp single
       {
@@ -116,13 +160,14 @@ int main( int argc, char* argv[] )
           start = end;
           t = 0.0;
           if (count % 10000 == 0) {
-            sglbm.output(dir, count, 0);
+            sglbm.output(dir, count);
           }
         }
       }
     }
-    sglbm.output(dir, count, 0);
-
+    sglbm.output(dir, count);
+    velocity_central(dir, sglbm, (sglbm.nx+1)/2, (sglbm.ny+1)/2);
+    velocity_all(dir, sglbm);
     return 0;
 }
 

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-samples_number = 100
+samples_number = 1000
 total_time_cost = 137.54+135.969+143.776+142.977
 #64 881.197+887.349
 #128 8835.7
@@ -12,7 +12,7 @@ u = np.zeros((samples_number, nx, ny))
 v = np.zeros((samples_number, nx, ny))
 tke = np.zeros(samples_number)
 
-dir = "/home/zhongml95/github/sglbm/data/tgv/t5/MC"+ str(nx)
+dir = "/home/zhongml95/github/sglbm/examples/tgv2d_mc/data/tgv/t5/MC"+ str(nx)
 
 tke_mean = np.zeros(samples_number)
 tke_var = np.zeros(samples_number)
@@ -43,6 +43,21 @@ time_list = np.linspace(total_time_cost / samples_number, total_time_cost, sampl
 saved_filename = "tke_" + str(nx) + ".dat"
 np.savetxt(saved_filename, tke)
 
+print("tke_mean: ", tke_mean[-1])
+
+u_mean = np.zeros((nx, ny))
+v_mean = np.zeros((nx, ny))
+tke_mean_all = 0
+
+for i in range(0, nx):
+    for j in range(0, ny):
+        u_mean[i,j] = np.mean(u[:,i,j])
+        v_mean[i,j] = np.mean(v[:,i,j])
+        tke_mean_all += (u_mean[i,j]*u_mean[i,j] + v_mean[i,j]*v_mean[i,j]) * 2 / (nx*ny*u0*u0)
+
+
+print("tke_mean_all: ", tke_mean_all)
+
 
 
 plt.figure()
@@ -60,7 +75,7 @@ plt.xlabel('time cost')
 plt.ylabel('relative error')
 plt.show()
 # Display the plot
-plt.savefig("./results/computational_cost.png")
+plt.savefig("./data/computational_cost.png")
 
 
 

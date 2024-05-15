@@ -1,6 +1,6 @@
-points_weights_method=0
-order=2
-nq=5
+points_weights_method=1
+order=3
+nq=1000
 polynomialType=0
 resolution=32
 parameter1=0.8
@@ -9,4 +9,7 @@ L=6.28318530718
 lx=6.28318530718
 ly=6.28318530718
 Re=15.0
+tau=0.51206
 physVelocity=0.01
+Ma=0.0125
+physViscosity=0.0

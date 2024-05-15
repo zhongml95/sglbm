@@ -16,14 +16,14 @@ public:
   int N;
   double L;
   double dx;
-  double dy;
   double lx;
   double ly;
   int nx;
   int ny;
   double physVelocity;
-  double Re;
   double physViscosity;
+  double physDensity;
+  double Re;
   double tau;
   double dt;
   double conversionViscosity;
@@ -34,7 +34,6 @@ public:
   double u0;
   double omega0;
   std::string dir;
-  std::string exm;
 
   polynomials ops;
 
@@ -54,6 +53,7 @@ public:
   std::vector<double> u0Chaos;
   std::vector<double> dtChaos;
   std::vector<double> tauChaos;
+  std::vector<double> omegaChaos;
 
   std::vector<double> conversionViscosityRan;
   std::vector<double> conversionVelocityRan;
@@ -72,17 +72,15 @@ public:
   std::vector<std::vector<std::vector<double>>> u;
   std::vector<std::vector<std::vector<double>>> v;
   std::vector<std::vector<std::vector<double>>> rho;
-  std::vector<std::vector<std::vector<double>>> omega;
   std::vector<std::vector<std::vector<std::vector<double>>>> f;
   std::vector<std::vector<std::vector<std::vector<double>>>> F;
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
 
-    sglbm(std::string _dir, std::string _exm, const Parameters& params)
+  sglbm(std::string _dir, const Parameters& params)
         : ops(params.nq, params.order, params.parameter1, params.parameter2, params.polynomialType, params.points_weights_method) 
   {
     dir = _dir;
-    exm = _exm;
 
   }
 
@@ -141,46 +139,29 @@ public:
     return inp;
   }
 
-  void setGeometry(double _L, double _N, double _lx, double _ly, const std::vector<std::vector<int>>& _material) {
-    std::cout << "start setting geometry" << std::endl;
-    L = _L;
-    N = _N;
-    dx = L / N;
-    dy = L / N;
-    lx = _lx;
-    ly = _ly;
-    
-    nx = N + 1;
-    ny = N + 1;
 
-    if (exm == "tgv" || exm == "stgv"){
-      // nx = int(lx / dx);
-      // ny = int(ly / dy);
-
-      dx = 2 * M_PI * L / N;
-      dy = 2 * M_PI * L / N;
-    }
-
-    material.resize(nx);
-    for (int i = 0; i < nx; ++i) {
-      material[i].resize(ny);
-      for (int j = 0; j < ny; ++j) {
-        material[i][j] = _material[i][j];
-      }
-    }
-    std::cout << "finish setting geometry" << std::endl;
-
-  }
-
-  void setFluid(double _physVelocity, double _nu, double _tau)
+  void UnitConverterFromResolutionAndRelaxationTime(Parameters params)
   {
     std::cout << "set simulation parameter" << std::endl;
-    physVelocity = _physVelocity;
-    //Re = _Re;
-    physViscosity = _nu;//physVelocity*L/Re;
-    Re = physVelocity * L / physViscosity;
-    tau = _tau;
+    N = params.resolution;
+    tau = params.tau;
+    L = params.L;
+    physVelocity = params.physVelocity;
+
+    if (params.Re == 0) {
+      physViscosity = params.physViscosity;
+      Re = physVelocity * L / physViscosity;
+    }
+    else if (params.physViscosity == 0){
+      Re = params.Re;
+      physViscosity = physVelocity * L / Re;
+    }
+
+    physDensity = 1.0;
+    
+    dx = L / N;
     dt = (tau - 0.5) / 3.0 * (dx * dx) / physViscosity;
+
     conversionViscosity = dx * dx / dt;
     conversionVelocity = dx / dt;
     conversionDensity = 1.0;
@@ -188,6 +169,17 @@ public:
     conversionForce = conversionMass * dx / dt / dt;
     u0 = physVelocity / conversionVelocity;
     omega0 = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
+
+    std::cout << "resolution " << N << std::endl;
+    std::cout << "tau = " << tau << std::endl;
+    std::cout << "nu = " << physViscosity << std::endl;
+    std::cout << "Re = " << Re << std::endl;
+    std::cout << "u0 = " << u0 << std::endl;
+    std::cout << "converstionVelocity = " << conversionVelocity << std::endl;
+    std::cout << "converstionViscosity = " << conversionViscosity << std::endl;
+    std::cout << "dx = " << dx << std::endl;
+    std::cout << "dt = " << dt << std::endl;
+    std::cout << "Ma = " << u0 * std::sqrt(3.0) << std::endl;
   }
 
   void setCircle(double centerX, double centerY, double radius)
@@ -213,26 +205,13 @@ public:
     }
   }
 
-  void initialize()
+  void prepareLattice()
   {
     std::cout << "starting initialization" << std::endl;
-
-    std::cout << "resolution " << ny << std::endl;
-    std::cout << "nx = " << nx << "\t" << "ny = " << ny << std::endl;
-    std::cout << "tau = " << tau << std::endl;
-    std::cout << "nu = " << physViscosity << std::endl;
-    std::cout << "Re = " << Re << std::endl;
-    std::cout << "u0 = " << u0 << std::endl;
-    std::cout << "converstionVelocity = " << conversionVelocity << std::endl;
-    std::cout << "converstionViscosity = " << conversionViscosity << std::endl;
-    std::cout << "dx = " << dx << std::endl;
-    std::cout << "dt = " << dt << std::endl;
-    std::cout << "Ma = " << u0 * std::sqrt(3.0) << std::endl;
 
     u.resize(nx);
     v.resize(nx);
     rho.resize(nx);
-    omega.resize(nx);
     f.resize(nx);
     F.resize(nx);
     feq.resize(nx);
@@ -241,7 +220,6 @@ public:
       u[i].resize(ny);
       v[i].resize(ny);
       rho[i].resize(ny);
-      omega[i].resize(ny);
       f[i].resize(ny);
       F[i].resize(ny);
       feq[i].resize(ny);
@@ -249,12 +227,11 @@ public:
         u[i][j].resize(ops.No);
         v[i][j].resize(ops.No);
         rho[i][j].resize(ops.No);
-        omega[i][j].resize(ops.No);
+        
         for (int alpha = 0; alpha < ops.No; ++alpha) {
           u[i][j][alpha] = 0.0;
           v[i][j][alpha] = 0.0;
           rho[i][j][alpha] = 0.0;
-          omega[i][j][alpha] = 0.0;
         }
 
         f[i][j].resize(9);
@@ -272,253 +249,41 @@ public:
         }
       }
     }
-
-    ReChaos.resize(ops.No);
-    ReRan.resize(ops.total_nq);
-
-
-    // std::vector<double> uChaos(ops.No, 0.0);
-    // std::vector<double> vChaos(ops.No, 0.0);
-    // std::vector<double> rChaos(ops.No, 0.0);
-    std::vector<double> omegaChaos(ops.No, 0.0);
-    std::vector<double> physViscosityChaos(ops.No, 0.0);
-    std::vector<double> chaos(2, 0.0);
-    //rChaos[0] = 1.0;
-    std::cout << "omega: " << 1.0 / (3 * physViscosity / conversionViscosity + 0.5) << std::endl;
-
-    if (exm == "tgv"){
-      std::vector<double> omegaRan(ops.total_nq, 0.0);
-      std::vector<double> physViscosityRan(ops.total_nq, 0.0);
-
-      //if(ops.polynomialType == 0) {
-      ops.convert2affinePCE(Re * ops.parameter1[0], Re * ops.parameter2[0], ops.polynomial_types[0], chaos);
-      //}
-      //else if (ops.polynomialType == 1) {
-      //  ops.convert2affinePCE(physViscosity * ops.parameter1, physViscosity * ops.parameter2, chaos);
-      //}
-
-      ReChaos[0] = chaos[0];
-      ReChaos[1] = chaos[1]; 
-
-      std::cout << "ReChaos: ";
-      for (int alpha = 0; alpha < ops.No; ++alpha) {
-        std::cout << ReChaos[alpha] << "\t";
-      }
-      std::cout << std::endl;
-
-      ops.chaos2ran(ReChaos, ReRan);
-
-
-      for (int sample = 0; sample < ops.total_nq; ++sample) {
-        physViscosityRan[sample] = physVelocity * L / ReRan[sample];
-        omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / conversionViscosity + 0.5 );
-      }
-
-      ops.ran2chaos(omegaRan, omegaChaos);
-
-      //ops.convert2affinePCE(ops.parameter1 / ( 3.0 * physViscosity / conversionViscosity + 0.5 ), ops.parameter2 / ( 3.0 * physViscosity / conversionViscosity + 0.5 ), chaos);
-      //omegaChaos[0] = chaos[0];
-      //omegaChaos[1] = chaos[1];
-      std::cout << "omegaChaos: ";
-      for (int alpha = 0; alpha < ops.No; ++alpha) {
-        std::cout << omegaChaos[alpha] << "\t";
-      }
-      std::cout << std::endl;
-      /*if(ops.polynomialType == 0) {
-        ops.convert2affinePCE(1.0 / (3 * physViscosity * ops.parameter2 / conversionViscosity + 0.5), 1.0 / (3 * physViscosity * ops.parameter1 / conversionViscosity + 0.5),chaos);
-      }
-      else if (ops.polynomialType == 1) {
-        ops.convert2affinePCE((1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * ops.parameter1, (1.0 / (3 * physViscosity / conversionViscosity + 0.5)) * ops.parameter2, chaos);
-      }*/
     
-      std::cout << "chaos: " << omegaChaos[0] << "\t" << omegaChaos[1] << "\t" << omegaChaos[2] << std::endl;
-      // chaos.clear();
-    }
-    else if (exm == "cavity2d" || exm == "stgv") {
-      omegaChaos[0] = 1.0 / ( 3.0 * physViscosity / conversionViscosity + 0.5 );
-    }
+    omegaChaos.resize(ops.No);
+  }
 
-
-    //omp_set_num_threads(4);
-//#pragma omp parallel for collapse(2)
-    //#pragma omp single
-    //{
+  void initializeDistributionFunction() {
+    
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
-        std::vector<double> uChaos(ops.No+1, 0.0);
-        std::vector<double> vChaos(ops.No+1, 0.0);
-        std::vector<double> rChaos(ops.No+1, 0.0);
-        // std::cout << "i: " << i << "\t" << "j: " << j << ": " << vChaos[2] << std::endl;
-        //TGV            
-        for (int alpha = 0; alpha < ops.No; ++alpha) {
-          //printf("i: %d, j: %d, alpha: %d, omp_get_thread_num: %d\n", i,j,alpha,omp_get_thread_num()); 
-          if(exm == "tgv"){
-              double x = i * dx;
-              double y = j * dy;
-              
-              //rChaos[alpha] = 1.0 - 1.5 * u0Chaos[alpha] * u0Chaos[alpha] * std::cos(x + y) * std::cos(x - y);
-              //uChaos[alpha] = -u0Chaos[alpha] * std::cos(x) * std::sin(y);
-              //vChaos[alpha] = u0Chaos[alpha] * std::sin(x) * std::cos(y);
-
-              rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
-              uChaos[0] = -u0 * std::cos(x) * std::sin(y);
-              vChaos[0] = u0 * std::sin(x) * std::cos(y);
-
-              //omegaChaos[0] = omega0;
-              //printf("i: %d, j: %d, alpha: %d, omp_get_thread_num: %d\n", i,j,alpha,omp_get_thread_num()); 
-          }
-          else if (exm == "cavity2d"){
-            rChaos[0] = 1.0;
-            omegaChaos[0] = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
-          }
-          else if (exm == "stgv"){
-
-              double x = i * dx;
-              double y = j * dy;
-
-              rChaos[0] = 1.0;// - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
-              uChaos[0] = u0 * std::sin(x) * std::cos(y);
-              vChaos[0] = -u0 * std::cos(x) * std::sin(y);
-              std::vector<double> u0Chaos(ops.random_number_dimension + 1, 0.0);
-
-              if (alpha <= ops.random_number_dimension && alpha != 0) {
-                int random_id = alpha - 1;
-                // if(alpha == 3)
-                // std::cout << ops.parameter1[2] << "\t" << ops.parameter2[2] << "\t" << ops.polynomial_types[2] << std::endl;
-                ops.convert2affinePCE(ops.parameter1[random_id], ops.parameter2[random_id], ops.polynomial_types[random_id], chaos);
-                if (random_id == 0) {
-                  u0Chaos[0] += u0 * chaos[0] * std::sin(x) * std::sin(y);
-                  u0Chaos[alpha] = u0 * chaos[1] * std::sin(x) * std::sin(y);
-                }
-                else if (random_id == 1)  {
-                  u0Chaos[0] += u0 * chaos[0] * std::sin(x) * std::cos(y);
-                  u0Chaos[alpha] = u0 * chaos[1] * std::sin(x) * std::cos(y);
-                }
-                else if (random_id == 2) {
-                  u0Chaos[0] += u0 * chaos[0] * std::cos(x) * std::sin(y);
-                  u0Chaos[alpha] = u0 * chaos[1] * std::cos(x) * std::sin(y);
-                }
-                else if (random_id == 3) {
-                  u0Chaos[0] += u0 * chaos[0] * std::cos(x) * std::cos(y);
-                  u0Chaos[alpha] = u0 * chaos[1] * std::cos(x) * std::cos(y);
-                }
-              }
-              if (alpha < ops.random_number_dimension+1 && alpha != 0) {
-
-                uChaos[alpha] += 0.25 * u0Chaos[alpha] * std::cos(x) * std::sin(y);
-                vChaos[alpha] += 0.25 * u0Chaos[alpha] * std::sin(x) * std::cos(y);
-              }
-
-          }
-          
-          u[i][j][alpha] = uChaos[alpha];
-          v[i][j][alpha] = vChaos[alpha];
-          rho[i][j][alpha] = rChaos[alpha];
-          omega[i][j][alpha] = omegaChaos[alpha];
-
-          // if(alpha < ops.random_number_dimension+1) {
-          //   std::cout << uChaos[alpha] << std::endl;
-          //   std::cout << u[i][j][alpha] << "\t";
-          // }
-        }
-        // std::cout << std::endl;
-      }
-    }
-
-
-    std::vector<double> rRan(ops.total_nq, 0.0);
-    std::vector<double> uRan(ops.total_nq, 0.0);
-    std::vector<double> vRan(ops.total_nq, 0.0);
-
-    //std::vector<double> rSlice(ops.No + 1, 0.0);
-    //std::vector<double> uSlice(ops.No + 1, 0.0);
-    //std::vector<double> vSlice(ops.No + 1, 0.0);
-
-    std::vector<double> feqRan(ops.total_nq, 0.0);
-    std::vector<double> feqSlice(ops.No, 0.0);
-
-    //#pragma omp parallel for num_threads(4)
-    for (int i = 0; i < nx; ++i) {
-      for (int j = 0; j < ny; ++j) {
-        /*for (int alpha = 0; alpha < ops.No + 1; ++alpha) {
-          rSlice[alpha] = rho[i][j][alpha];
-          uSlice[alpha] = u[i][j][alpha];
-          vSlice[alpha] = v[i][j][alpha];
-        }*/
-
-        ops.chaos2ran(rho[i][j], rRan);
-        ops.chaos2ran(u[i][j], uRan);
-        ops.chaos2ran(v[i][j], vRan);
-
         for (int k = 0; k < 9; ++k) {
-
-          for (int sample = 0; sample < ops.total_nq; sample++) {
-            feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
-          }
-
-          ops.ran2chaos(feqRan, feqSlice);
-          for (int alpha = 0; alpha < ops.No; ++alpha) {
-            feq[i][j][k][alpha] = feqSlice[alpha];
-            //std::cout << feqSlice[alpha] << std::endl;
-            f[i][j][k][alpha] = feqSlice[alpha];
-            F[i][j][k][alpha] = feqSlice[alpha];
-          }
+          feq[i][j][k][0] = equilibrium(rho[i][j][0], u[i][j][0], v[i][j][0], cx[k], cy[k], w[k]);
+          f[i][j][k][0] = feq[i][j][k][0];
+          F[i][j][k][0] = feq[i][j][k][0];
         }
       }
     }
-
-    //std::cout << "initialize finished" << std::endl;
-
-    // uChaos.clear();
-    // vChaos.clear();
-    // rChaos.clear();
-    // omegaChaos.clear();
-
-    // rRan.clear();
-    // uRan.clear();
-    // vRan.clear();
-    // feqRan.clear();
-    // rSlice.clear();
-    // uSlice.clear();
-    // vSlice.clear();
-    // feqSlice.clear();
-    // std::cout << "clear data" << std::endl;
-
+    
   }
 
   void collision()
   {
 
-    //std::vector<double> omegaSlice(ops.No + 1, 0.0);
-    //std::vector<double> fSlice(ops.No + 1, 0.0);
-    //std::vector<double> feqSlice(ops.No + 1, 0.0);
     std::vector<double> QSlice(ops.No, 0.0);
     //std::cout << "collision start" << std::endl;
 #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         for (int k = 0; k < 9; ++k) {
-          /*for (int alpha = 0; alpha < ops.No + 1; ++alpha) {
-            omegaSlice[alpha] = omega[i][j][alpha];
-            fSlice[alpha] = f[i][j][k][alpha];
-            feqSlice[alpha] = feq[i][j][k][alpha];
-            //std::cout << feq[i][j][k][alpha] << std::endl;
-          }*/
-          collisionTerm(f[i][j][k], feq[i][j][k], omega[i][j], QSlice);
+          collisionTerm(f[i][j][k], feq[i][j][k], omegaChaos, QSlice);
 
           for (int alpha = 0; alpha < ops.No; ++alpha) {
             F[i][j][k][alpha] = f[i][j][k][alpha] + QSlice[alpha];
-            //std::cout << F[i][j][k][alpha] << std::endl;
           }
         }
       }
     }
-    //std::cout << "collision finished" << std::endl;
-
-    //omegaSlice.clear();
-    //fSlice.clear();
-    //feqSlice.clear();
-    //QSlice.clear();
   }
 
   void collisionTerm(std::vector<double> _f, std::vector<double> _feq, std::vector<double> _omega, std::vector<double>& Q)
@@ -530,8 +295,6 @@ public:
 
       for (int j = 0; j < ops.No; ++j) {
         for (int k = 0; k < ops.No; ++k) {
-          // sum1 += _omega[j] * _feq[k] * ops.t3Product[j][k][i];
-          // sum2 += _omega[j] * _f[k] * ops.t3Product[j][k][i];
           size_t flatIndex = i + ops.No * (k + ops.No * j);
           sum1 += _omega[j] * _feq[k] * ops.t3Product[flatIndex];
           sum2 += _omega[j] * _f[k] * ops.t3Product[flatIndex];
@@ -561,10 +324,6 @@ public:
           int jj = (j + ny + cy[k]) % (ny);
 
           f[ii][jj][k] = F[i][j][k];
-
-          // for (int alpha = 0; alpha < ops.No; ++alpha) {
-          //   f[ii][jj][k][alpha] = F[i][j][k][alpha];
-          // }
         }
       }
     }
@@ -604,7 +363,6 @@ public:
           for (int k = 0; k < 9; ++k) {
             rChaos[alpha] += f[i][j][k][alpha];
           }
-          //rho[i][j][alpha] = rChaos[alpha];
         }
         rho[i][j] = rChaos;
 
@@ -644,12 +402,9 @@ public:
             vRan[sample] = 0.0;
           }
         }
+        // Stochastic velocity boundary condition
         else if (material[i][j] == 3){
-          std::vector<double> chaos(2,0.0);
-          ops.convert2affinePCE(ops.parameter1[0]*u0, ops.parameter2[0]*u0, ops.polynomial_types[0],chaos);
-          uChaos[0] = chaos[0];
-          uChaos[1] = chaos[1];
-          ops.chaos2ran(uChaos, uRan);
+          ops.chaos2ran(u[i][j], uRan);
           std::vector<double> empty(ops.total_nq, 0.0);
           vRan.swap(empty);
         }
@@ -689,7 +444,7 @@ public:
 
   }
 
- void output(std::string dir, int iter, double total_computational_time)
+ void output(std::string dir, int iter)
   {
     std::cout << "output iter " << iter << " start" << std::endl;
     std::string filename = dir + std::to_string(iter) + ".dat";
@@ -709,7 +464,7 @@ public:
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         double x = i * dx;
-        double y = j * dy;
+        double y = j * dx;
 
         for (int alpha = 0; alpha < ops.No; ++alpha) {
           rSlice[alpha] = rho[i][j][alpha];
@@ -717,148 +472,11 @@ public:
           vSlice[alpha] = v[i][j][alpha];
         }
         outputFile << x << "\t" << y << "\t" << ops.mean(rho[i][j]) << "\t" << ops.mean(u[i][j]) * conversionVelocity << "\t" << ops.mean(v[i][j]) * conversionVelocity << "\t" << ops.std(rSlice) << "\t" << ops.std(uSlice) * conversionVelocity << "\t" << ops.std(vSlice) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
-
-        // rSlice.clear();
-        // uSlice.clear();
-        // vSlice.clear();
       }
     }
     outputFile.close();
-
-    if (exm == "tgv" || exm == "stgv"){
-      std::string filenameTKE = dir + "final/tke.dat";
-      std::ofstream outputFileTKE(filenameTKE);
-      std::vector<double> tke(ops.No,0.0);
-      double tkeAna = 0.0;
-      totalKineticEnergy(tke, tkeAna, iter+1);
-
-      outputFileTKE.precision(20);  
-      outputFileTKE << ops.mean(tke) << "\t" << ops.std(tke) << "\t" << tkeAna << "\t" << total_computational_time;
-      outputFileTKE.close();
-      // tke.clear();
-    }
-
-    std::string filenameU = dir + "final/u.dat";
-    std::ofstream outputFileU(filenameU);
-
-    for(int j = 0; j < ny; ++j){
-      int idx = (nx+1)/2;
-      if (exm == "tgv" || exm == "stgv"){
-        idx = nx / 2 + 1;
-      }
-      //std::vector<double> uSlice(ops.No, 0.0);
-      for (int alpha = 0; alpha < ops.No; ++alpha) {
-        uSlice[alpha] = u[idx][j][alpha];
-      }
-
-      outputFileU.precision(20);  
-      outputFileU << j * dy << "\t" << ops.mean(uSlice) * conversionVelocity << "\t" << ops.std(uSlice) * conversionVelocity;
-
-      if (exm == "tgv" || exm == "stgv"){
-        double x = idx * dx;
-        double y = j * dy;
-        double k2 = dx*dx + dy*dy;
-        double damp = std::exp(-k2*physViscosity*iter);
-        outputFileU << "\t" << -u0 * std::cos(x) * std::sin(y) * damp * conversionVelocity;
-      }
-
-      outputFileU << "\n";
-
-      //uSlice.clear();
-    }      
-    outputFileU.close();
-
-    std::string filenameV = dir + "final/v.dat";
-    std::ofstream outputFileV(filenameV);
-
-    for(int i = 0; i < nx; ++i){
-      int idy = (ny+1)/2;      
-      if (exm == "tgv" || exm == "stgv"){
-        idy = ny / 2 + 1;
-      }
-      //std::vector<double> vSlice(ops.No, 0.0);
-      for (int alpha = 0; alpha < ops.No; ++alpha) {
-        vSlice[alpha] = v[i][idy][alpha];
-      }
-
-
-      outputFileV.precision(20);  
-      outputFileV << i * dx << "\t" << ops.mean(vSlice) * conversionVelocity << "\t" << ops.std(vSlice) * conversionVelocity;
-
-      if (exm == "tgv" || exm == "stgv"){
-        double x = i * dx;
-        double y = idy * dy;
-        double k2 = dx*dx + dy*dy;
-        double damp = std::exp(-k2*physViscosity*iter);
-        outputFileU << "\t" << u0 * std::sin(x) * std::cos(y) * damp * conversionVelocity;
-      }
-
-      outputFileV << "\n";
-      // vSlice.clear();
-    }      
-    outputFileV.close();
-
-    std::string filenameUAll = dir + "final/uAll.dat";
-    std::ofstream outputFileUAll(filenameUAll);
-
-    for (int i = 0; i < nx; ++i) {
-      for (int j = 0; j < ny; ++j) {
-        for (int alpha = 0; alpha < ops.No; ++alpha) {
-          outputFileUAll.precision(20);  
-          outputFileUAll << i * dx << "\t" << j * dy << "\t" << ops.mean(u[i][j]) * conversionVelocity << "\t" << ops.std(u[i][j]) * conversionVelocity << "\n";
-        }
-      }
-    }
-    outputFileUAll.close();
-
-    std::string filenameVAll = dir + "final/vAll.dat";
-    std::ofstream outputFileVAll(filenameVAll);
-
-    for (int i = 0; i < nx; ++i) {
-      for (int j = 0; j < ny; ++j) {
-        for (int alpha = 0; alpha < ops.No; ++alpha) {
-          outputFileVAll.precision(20);  
-          outputFileVAll << i * dx << "\t" << j * dy << "\t" << ops.mean(v[i][j]) * conversionVelocity << "\t" << ops.std(v[i][j]) * conversionVelocity << "\n";
-        }
-      }
-    }
-    outputFileVAll.close();
-
   }
     
-  void totalKineticEnergy(std::vector<double>&tke, double&tkeAna, int t)
-    {
-      std::vector<double> u2Chaos(ops.No, 0.0);
-      std::vector<double> v2Chaos(ops.No, 0.0);
-      std::vector<double> tkeChaos(ops.No, 0.0);
-      
-        for (int i = 0; i < nx; ++i){
-            for (int j = 0; j < ny; ++j){
-
-                ops.chaos_product(u[i][j], u[i][j], u2Chaos);
-                ops.chaos_product(v[i][j], v[i][j], v2Chaos);
-
-
-                for (int alpha = 0; alpha < ops.No; ++alpha) {
-                    tke[alpha] += ((u2Chaos[alpha] + v2Chaos[alpha]) *  0.5 / (nx*ny*u0*u0));
-                    //tke[alpha] += tkeChaos[alpha];
-                }
-                
-                double x = i * dx;
-                double y = j * dy;
-                double k2 = dx*dx + dy*dy;
-                double damp = std::exp(-k2*physViscosity*t);
-                double uAna = -u0 * std::cos(x) * std::sin(y) * damp;
-                double vAna =  u0 * std::sin(x) * std::cos(y) * damp;
-                tkeAna += ((uAna * uAna + vAna * vAna) * 0.5/(nx*ny*u0*u0));
-
-            }
-        }
-        // u2.clear();
-        // v2.clear();
-        // uSlice.clear();
-        // vSlice.clear();
-    }
 
     void boundary()
     {
@@ -893,8 +511,6 @@ public:
           else if (material[i][j] == 3){
             for (int alpha = 0; alpha < ops.No; ++alpha) {
               rSlice[alpha] = rho[i][j-1][alpha];
-              //uSlice[alpha] = u[i][j][alpha];
-              //vSlice[alpha] = v[i][j][alpha];
             }
             ops.chaos2ran(rSlice, rRan);
 

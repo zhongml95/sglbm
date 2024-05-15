@@ -1,4 +1,4 @@
-#include "cavity2d.h"
+#include "tgv2d.h"
 
 int main( int argc, char* argv[] )
 {
@@ -7,6 +7,8 @@ int main( int argc, char* argv[] )
 
   // Call readParameters to populate the params instance
   readParameters("./parameters.dat", params);
+  double physViscosity = params.physVelocity * params.L / params.Re;
+  params.tau = 3 * physViscosity + 0.5;
 
   std::string dir    = "./data/nx" + std::to_string(params.resolution) + "/";
   std::string dirAna = "./data/nx" + std::to_string(params.resolution) + "/final/";
@@ -23,7 +25,7 @@ int main( int argc, char* argv[] )
   std::cout << dir << std::endl;
   std::cout << "finish mkdir" << std::endl;
 
-  simulateCavity2D(params, dir, 0, uq);
+  simulateTGV2D(params, dir, 0, uq);
 
   return 0;
 }
