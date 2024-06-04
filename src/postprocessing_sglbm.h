@@ -55,28 +55,28 @@ void velocity_all(std::string dir, sglbm& sglbm) {
   outputFileV.close();
 
   // std velocity in x direction of the domain
-  std::string filenameU = dir + "final/u_std.dat";
-  std::ofstream outputFileU(filenameU);
+  std::string filename_u_std = dir + "final/u_std.dat";
+  std::ofstream outputFileUStd(filename_u_std);
   for(int j = 0; j < sglbm.ny; ++j){
     for(int i = 0; i < sglbm.nx; ++i){
-      outputFileU.precision(20);  
-      outputFileU << sglbm.ops.std(sglbm.u[i][j]) * sglbm.conversionVelocity << "\t" ;
+      outputFileUStd.precision(20);  
+      outputFileUStd << sglbm.ops.std(sglbm.u[i][j]) * sglbm.conversionVelocity << "\t" ;
     }      
-    outputFileU << "\n";
+    outputFileUStd << "\n";
   }
-  outputFileU.close();
+  outputFileUStd.close();
 
   // std velocity in y direction of the domain
-  std::string filenameV = dir + "final/v_std.dat";
-  std::ofstream outputFileV(filenameV);
+  std::string filename_v_std = dir + "final/v_std.dat";
+  std::ofstream outputFileVStd(filename_v_std);
   for(int j = 0; j < sglbm.ny; ++j) {
     for(int i = 0; i < sglbm.nx; ++i) {
-      outputFileV.precision(20);  
-      outputFileV << sglbm.ops.std(sglbm.v[i][j]) * sglbm.conversionVelocity << "\t";
+      outputFileVStd.precision(20);  
+      outputFileVStd << sglbm.ops.std(sglbm.v[i][j]) * sglbm.conversionVelocity << "\t";
     }      
-    outputFileV << "\n";
+    outputFileVStd << "\n";
   }
-  outputFileV.close();
+  outputFileVStd.close();
 }
 
 

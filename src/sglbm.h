@@ -330,6 +330,21 @@ public:
 
   }
 
+  bool check_positivity() {
+    
+    for (int i = 0; i < nx; ++i) {
+      for (int j = 0; j < ny; ++j) {
+        for (int alpha = 0; alpha < ops.No; ++alpha) {
+          if (rho[i][j][alpha] < 0) {
+            std::cout << "alpha: " << alpha << ", rho: "<<  rho[i][j][alpha] << std::endl;
+            // return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
 
   void reconstruction()
   {
