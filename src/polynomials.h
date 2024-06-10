@@ -24,12 +24,14 @@ std::vector<std::vector<int>> calculateMultiIndices(int d, int n) {
             inds[j+1][j] = 1;
         }
 
-        for (int i = 0; i < No; ++i) {
-            for (int j = 0; j < d; ++j) {
-                std::cout << inds[i][j] << "\t";
-            }
-            std::cout << std::endl;
-        }
+        // print index library
+        // for (int i = 0; i < No; ++i) {
+        //     for (int j = 0; j < d; ++j) {
+        //         std::cout << inds[i][j] << "\t";
+        //     }
+        //     std::cout << std::endl;
+        // }
+
         return inds;
     }
     else {
@@ -65,13 +67,14 @@ std::vector<std::vector<int>> calculateMultiIndices(int d, int n) {
             }
         }
 
-        std::cout << "inds" << std::endl;
-        for(int i = 0; i < No; ++i) {
-            for (int j = 0; j < d; ++j) {
-                std::cout << inds[i][j] << "\t";
-            }
-            std::cout << std::endl;
-        }
+        // print index library
+        // std::cout << "inds" << std::endl;
+        // for(int i = 0; i < No; ++i) {
+        //     for (int j = 0; j < d; ++j) {
+        //         std::cout << inds[i][j] << "\t";
+        //     }
+        //     std::cout << std::endl;
+        // }
         return inds;
     }
 }
@@ -118,6 +121,8 @@ public:
     std::vector<double> t2Product_inv;
     std::vector<double> t3Product;
     // std::vector<std::vector<std::vector<double>>> t3Product;
+
+    std::vector<polynomial> polynomial_collection;
 
     polynomials(int _nq, int _order, std::vector<double> _parameter1, std::vector<double> _parameter2, std::vector<int> _polynomial_types, size_t _points_weights_method){
         points_weights_method = _points_weights_method;
@@ -169,6 +174,8 @@ public:
                 weights[i*nq + j] = op.weights[j];
             }
             polynomial_coefficients[i] = op.polynomialCoeffs;
+
+            polynomial_collection.push_back(op);
         }
 
 
@@ -181,6 +188,17 @@ public:
         }
 
         evaluatePhiRan();
+
+        // print phiran
+        // std::cout << "phiRan" << std::endl;
+        // for (int i = 0; i < total_nq; ++i) {
+        //     for (int j = 0; j < No; ++j) {
+        //         std::cout << phiRan[i * No + j] << "\t";
+        //     }
+        //     std::cout << std::endl;
+        // }
+
+        
         tensor();
 
     }
@@ -277,11 +295,14 @@ public:
                 for (int j = 0; j < No; ++j) {
                     for (int m = 0; m < total_nq; ++m) {
                         // std::vector<int> index = find_index(m, random_number_dimension, nq);
-                        double pi_weights = 1.0;
-                        for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
-                            pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
-                        }
-                        tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * pi_weights;
+
+                        // double pi_weights = 1.0;
+                        // for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
+                        //     pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
+                        // }
+                        // tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * pi_weights;
+
+                        tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * weights_multiplied[m];
                     }
                 }
             }
@@ -295,10 +316,11 @@ public:
             t2Product_inv[i] = 1.0 / t2Product[i];
         }
 
-        for (int i = 0; i < No; ++i) {          
-            std::cout << t2Product[i] << "\t";
-        }
-        std::cout << std::endl;
+        // print t2Product
+        // for (int i = 0; i < No; ++i) {          
+        //     std::cout << t2Product[i] << "\t";
+        // }
+        // std::cout << std::endl;
 
 
         std::cout << "t3product" << std::endl;
@@ -366,7 +388,6 @@ public:
     {
         std::vector<double> precomputedProductsFlat(No * No);
 
-        // Precompute the products of elements from chaos1 and chaos2 and store them in a flat vector
         for (int j = 0; j < No; ++j) {
             for (int k = 0; k < No; ++k) {
                 precomputedProductsFlat[j * No + k] = chaos1[j] * chaos2[k];
@@ -385,6 +406,14 @@ public:
             production[i] = sum * t2Product_inv[i];
         }
     }
+
+    void chaos_sum(const std::vector<double>& chaos1, const std::vector<double>& chaos2, std::vector<double>&sum)
+    {
+        for (int i = 0; i < No; ++i) {
+            sum[i] = chaos1[i] + chaos2[i];
+        }
+    }
+
 
     void convert2affinePCE(double para1, double para2, int polynomialType, std::vector<double>&domain)
     {   

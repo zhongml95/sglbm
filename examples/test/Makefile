@@ -1,14 +1,16 @@
-# Makefile for compiling cavity2d_lbm.cpp with OpenMP support
+# Makefile for compiling test.cpp with OpenMP and GSL
 
 # Compiler settings
 CXX = g++
 CXXFLAGS = -O3 -fopenmp
+INCLUDES = -I/home/zhongml95/gsl/include
+LIBS = -lgsl -lgslcblas # Link against GSL libraries
 
 # Target executable
-TARGET = cavity2d
+TARGET = test
 
 # Source files
-SOURCES = cavity2d.cpp
+SOURCES = test.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target

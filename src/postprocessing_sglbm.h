@@ -85,7 +85,6 @@ void totalKineticEnergy(sglbm& sglbm, std::vector<double>&tke, double&tkeAna, in
   std::vector<double> u2Chaos(sglbm.ops.No, 0.0);
   std::vector<double> v2Chaos(sglbm.ops.No, 0.0);
   std::vector<double> tkeChaos(sglbm.ops.No, 0.0);
-      
   for (int i = 0; i < sglbm.nx; ++i) {
     for (int j = 0; j < sglbm.ny; ++j) {
       sglbm.ops.chaos_product(sglbm.u[i][j], sglbm.u[i][j], u2Chaos);

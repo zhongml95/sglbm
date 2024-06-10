@@ -1,4 +1,4 @@
-# Makefile for compiling tgv2d.cpp with OpenMP and GSL
+# Makefile for compiling cavity2d.cpp with OpenMP and GSL
 
 # Compiler settings
 CXX = g++

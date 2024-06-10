@@ -10,6 +10,8 @@
 
 #define totalCollocation
 // #define onlyUVCollocation
+// #define stochastic_omega
+#define constant_omega
 
 class sglbm{
 public:
@@ -254,13 +256,35 @@ public:
   }
 
   void initializeDistributionFunction() {
+
+    std::vector<double> rRan(ops.total_nq, physDensity);
+    std::vector<double> uRan(ops.total_nq, 0.0);
+    std::vector<double> vRan(ops.total_nq, 0.0);
+    std::vector<double> feqRan(ops.total_nq, 0.0);
+    std::vector<double> feqChaos(ops.No, 0.0);
     
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
+        ops.chaos2ran(u[i][j], uRan);
+        ops.chaos2ran(v[i][j], vRan);
         for (int k = 0; k < 9; ++k) {
-          feq[i][j][k][0] = equilibrium(rho[i][j][0], u[i][j][0], v[i][j][0], cx[k], cy[k], w[k]);
-          f[i][j][k][0] = feq[i][j][k][0];
-          F[i][j][k][0] = feq[i][j][k][0];
+          for (int sample = 0; sample < ops.total_nq; sample++) {
+            feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
+        }
+
+        ops.ran2chaos(feqRan, feqChaos);
+        feq[i][j][k] = feqChaos;
+        f[i][j][k] = feqChaos;
+        F[i][j][k] = feqChaos;
+        
+          // feq[i][j][k] = equilibrium(rho[i][j], u[i][j], v[i][j], cx[k], cy[k], w[k]);
+          // f[i][j][k] = feq[i][j][k];
+          // F[i][j][k] = feq[i][j][k];
+          // for (int alpha = 0; alpha < ops.No; ++alpha) {
+          //   feq[i][j][k][alpha] = equilibrium(rho[i][j][alpha], u[i][j][alpha], v[i][j][alpha], cx[k], cy[k], w[k]);
+          //   f[i][j][k][alpha] = feq[i][j][k][alpha];
+          //   F[i][j][k][alpha] = feq[i][j][k][alpha];
+          // }
         }
       }
     }
@@ -271,7 +295,7 @@ public:
   {
 
     std::vector<double> QSlice(ops.No, 0.0);
-    //std::cout << "collision start" << std::endl;
+    // std::cout << "collision start" << std::endl;
 #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
@@ -292,16 +316,19 @@ public:
     for (int i = 0; i < ops.No; ++i) {
       double sum1 = 0.0;
       double sum2 = 0.0;
-
-      for (int j = 0; j < ops.No; ++j) {
-        for (int k = 0; k < ops.No; ++k) {
-          size_t flatIndex = i + ops.No * (k + ops.No * j);
-          sum1 += _omega[j] * _feq[k] * ops.t3Product[flatIndex];
-          sum2 += _omega[j] * _f[k] * ops.t3Product[flatIndex];
+      #if defined(stochastic_omega)
+        for (int j = 0; j < ops.No; ++j) {
+          for (int k = 0; k < ops.No; ++k) {
+            size_t flatIndex = i + ops.No * (k + ops.No * j);
+            sum1 += _omega[j] * _feq[k] * ops.t3Product[flatIndex];
+            sum2 += _omega[j] * _f[k] * ops.t3Product[flatIndex];
+          }
         }
-      }
 
-      Q[i] = (sum1 - sum2) * ops.t2Product_inv[i];
+        Q[i] = (sum1 - sum2) * ops.t2Product_inv[i];
+      #elif defined(constant_omega)
+        Q[i] = _omega[0] * (_feq[i] - _f[i]);
+      #endif
     }
   }
 
@@ -312,10 +339,34 @@ public:
     return _r * _w * (1.0 + 3.0 * t2 + 4.5 * t2 * t2 - 1.5 * t1);
   }
 
+  std::vector<double> equilibrium(std::vector<double> _r, std::vector<double> _u, std::vector<double> _v, int _cx, int _cy, double _w)
+  {
+    std::vector<double> _feq(ops.No, 0.0);
+    std::vector<double> _u2(ops.No, 0.0);
+    std::vector<double> _v2(ops.No, 0.0);
+    std::vector<double> _feq_without_rho(ops.No, 0.0);
+    std::vector<double> _t2(ops.No, 0.0);
+    ops.chaos_product(_u, _u, _u2);
+    ops.chaos_product(_v, _v, _v2);
+
+    for (int i = 0; i < ops.No; ++i) {
+      _t2[i] = _u[i] * _cx + _v[i] * _cy;
+    }
+    std::vector<double> _t2_2(ops.No, 0.0);
+    ops.chaos_product(_t2, _t2, _t2_2);
+
+    for (int i = 0; i < ops.No; ++i) {
+      double t1 = _u2[i] + _v2[i];
+      _feq_without_rho[i] = _w * (1.0 + 3.0 * _t2[i] + 4.5 * _t2_2[i] - 1.5 * t1);
+    }
+
+    ops.chaos_product(_r, _feq_without_rho, _feq);
+    return _feq;
+  }
+
   void streaming()
   {
-    //std::vector<std::vector<std::vector<std::vector<double>>>> ftmp(nx, std::vector<std::vector<std::vector<double>>>(ny, std::vector<std::vector<double>>(9, std::vector<double>(order + 1, 0.0))));
-    //std::cout << "streaming start" << std::endl;
+    // std::cout << "streaming start" << std::endl;
     #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
@@ -358,6 +409,7 @@ public:
 
     std::vector<double> fSlice(ops.No, 0.0);
     std::vector<double> feqSlice(ops.No, 0.0);
+    // std::cout << "reconstruction start" << std::endl;
 
 #pragma omp for collapse(2)
     for (int i = 0; i < nx; ++i) {
@@ -469,24 +521,21 @@ public:
       return;
     }
 
-    outputFile << "variables = \"X\", \"Y\", \"RhoMean\", \"uMean\", \"vMean\", \"RhoStd\", \"uStd\", \"vStd\", \"geometry\"\n";
+    outputFile << "variables = \"X\", \"Y\", \"magMean\", \"uMean\", \"vMean\", \"magStd\", \"uStd\", \"vStd\", \"geometry\"\n";
     outputFile << "ZONE I = " << nx << ", J = " << ny << ", F = POINT\n";
-
-    std::vector<double> rSlice(ops.No, 0.0);
-    std::vector<double> uSlice(ops.No, 0.0);
-    std::vector<double> vSlice(ops.No, 0.0);
 
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
         double x = i * dx;
         double y = j * dx;
+        std::vector<double> u2(ops.No, 0.0);
+        std::vector<double> v2(ops.No, 0.0);
+        std::vector<double> mag(ops.No, 0.0);
+        sglbm::ops.chaos_product(u[i][j], u[i][j], u2);
+        sglbm::ops.chaos_product(v[i][j], v[i][j], v2);
+        sglbm::ops.chaos_sum(u2, v2, mag);
 
-        for (int alpha = 0; alpha < ops.No; ++alpha) {
-          rSlice[alpha] = rho[i][j][alpha];
-          uSlice[alpha] = u[i][j][alpha];
-          vSlice[alpha] = v[i][j][alpha];
-        }
-        outputFile << x << "\t" << y << "\t" << ops.mean(rho[i][j]) << "\t" << ops.mean(u[i][j]) * conversionVelocity << "\t" << ops.mean(v[i][j]) * conversionVelocity << "\t" << ops.std(rSlice) << "\t" << ops.std(uSlice) * conversionVelocity << "\t" << ops.std(vSlice) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
+        outputFile << x << "\t" << y << "\t" << std::sqrt(ops.mean(mag)) << "\t" << ops.mean(u[i][j]) * conversionVelocity << "\t" << ops.mean(v[i][j]) * conversionVelocity << "\t" << std::sqrt(ops.std(mag)) << "\t" << ops.std(u[i][j]) * conversionVelocity << "\t" << ops.std(v[i][j]) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
       }
     }
     outputFile.close();

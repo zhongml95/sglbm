@@ -85,9 +85,26 @@ public:
         else if (polynomialType == 1) {
             HermitePoly();
         }
+
+        // print polynomialCoeffs
+        // for (int i = 0; i < order+1; ++i) {
+        //     for (int j = 0; j < order+1; ++j) {
+        //         std::cout << polynomialCoeffs[i][j] << "\t";
+        //     }
+        //     std::cout << std::endl;
+        // }
         
-        std::cout << "calc phiran" << std::endl;
+        // std::cout << "calc phiran" << std::endl;
         evaluatePhiRan();
+
+        // print phiran
+        // for (int i = 0; i < nq; ++i) {
+        //     for (int j = 0; j < order+1; ++j) {
+        //         std::cout << phiRan[i][j] << "\t";
+        //     }
+        //     std::cout << std::endl;
+        // }
+
         std::cout << "calc tensor" << std::endl;
         tensor();
     };
@@ -100,17 +117,14 @@ public:
         return weights;
     }
 
-    void evaluatePhiRan() {        
-        //std::cout << "calc phiRan" << std::endl;
+    void evaluatePhiRan() {
         for (int k = 0; k < nq; ++k) {
             double previousSumPhi = 0.0;
             for (int i = 0; i < order+1; ++i) {
                 for (int j = 0; j < order+1; ++j) {
                     phiRan[k][i] += polynomialCoeffs[i][j] * std::pow(points[k], j);
                 }
-                //std::cout << phiRan[i][k] << "\t";
             }
-            //std::cout << std::endl;
         }
     }
 
@@ -157,13 +171,14 @@ public:
             }
         }
         
-        //std::cout << "t2product" << std::endl;
-        for (int i = 0; i < order+1; ++i) {
-            t2Product[i] = tensor2d[i][i];
+        // print tensor2d
+        // std::cout << "t2product" << std::endl;
+        // for (int i = 0; i < order+1; ++i) {
+        //     t2Product[i] = tensor2d[i][i];
             
-            //std::cout << t2Product[i] << "\t" << std::endl;
-        }
-        //std::cout << std::endl;
+        //     std::cout << t2Product[i] << "\t" << std::endl;
+        // }
+        // std::cout << std::endl;
 
 
         for (int i = 0; i < order+1; ++i) {
@@ -220,7 +235,7 @@ public:
     {
 
         //normalized the coefficients
-        std::cout << "construct gpc" << std::endl;
+        std::cout << "construct gpc (Legendre polynomial basis)" << std::endl;
         for (int i = 0; i < nq+1; ++i)
         {
             std::vector<double> coeffs_i(nq+1,0.0);
@@ -230,21 +245,28 @@ public:
             else {
                   coeffs_i = Legendre_coefficients(i, polynomialCoeffs[i-1], polynomialCoeffs[i-2]);
             }
-            //std::cout << i << std::endl;
-            //for (int j = 0; j < i+1; ++j)
             for (int j = 0; j < nq+1; ++j)
             {
                 //normalize the coefficient with the zeroth term
                 if (j < i+1) {
-                    polynomialCoeffs[i][j] = coeffs_i[j];// / coeffs_i[i];
+                    polynomialCoeffs[i][j] = coeffs_i[j];
                 }
                 else {
                      polynomialCoeffs[i][j] = 0.;
                 }
-                std::cout << polynomialCoeffs[i][j] << "\t";
             }
-            std::cout << std::endl;
         }
+
+        // normalize the coefficients
+        for (int i = 0; i < nq+1; ++i)
+        {
+            for (int j = 0; j < i+1; ++j)
+            {
+                //normalize the coefficient with the zeroth term
+                polynomialCoeffs[i][j] = polynomialCoeffs[i][j] / polynomialCoeffs[i][i];
+            }
+        }
+
         std::cout << "quadrature points" << std::endl;
         polynomial_points_weights();
         
@@ -252,7 +274,7 @@ public:
 
     void HermitePoly()
     {
-
+        std::cout << "construct gpc (Hermite polynomial basis)" << std::endl;
         for (int i = 0; i < nq; ++i)
         {
             std::vector<double> coeffs_i(nq,0.0);
@@ -261,10 +283,18 @@ public:
             for (int j = 0; j < i+1; ++j)
             {
                 //normalize the coefficient with the zeroth term
-                polynomialCoeffs[i][j] = coeffs_i[j];
-                //std::cout << polynomialCoeffs[i][j] << "\t";
+                polynomialCoeffs[i][j] = coeffs_i[j] / coeffs_i[i];
             }
-            //std::cout << std::endl;
+        }
+
+        // normalize the coefficients
+        for (int i = 0; i < nq; ++i)
+        {
+            for (int j = 0; j < i+1; ++j)
+            {
+                //normalize the coefficient with the zeroth term
+                polynomialCoeffs[i][j] = polynomialCoeffs[i][j] / polynomialCoeffs[i][i];
+            }
         }
 
         polynomial_points_weights();
@@ -280,7 +310,6 @@ public:
             double sum = 0.0;
             for (int i = 1; i < order+1; ++i) {
                 sum += polynomialCoeffs[n][i] * i * pow(points[x], i-1);
-                //std::cout << polynomialCoeffs[n][i] << std::endl;
             }
             return sum;
         }
@@ -436,7 +465,7 @@ public:
         double xi, wi;
         for (size_t i = 0; i < n; ++i) {
             gsl_integration_glfixed_point(-1.0, 1.0, i, &xi, &wi, table);
-            weights.push_back(wi);
+            weights.push_back(wi * 0.5);
         }
 
         gsl_integration_glfixed_table_free(table);
@@ -449,7 +478,6 @@ public:
             double a1 = 0.5 * (para1 + para2);
             double a2 = 0.5 * (para2 - para1);
             domain[0] = a1;// + alpha[0]  * a2;
-            //std::cout << "alpha0 = " << alpha[0] << std::endl;
             domain[1] = a2;
         }
         else if (polynomialType == 1) {

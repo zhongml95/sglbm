@@ -25,7 +25,8 @@ void setGeometry(lbm& lbm, Parameters params) {
 
 }
 
-void initialize(lbm& lbm) {
+
+void initialize(lbm& lbm, std::vector<double> delta) {
 
   lbm.prepareLattice();
 
@@ -33,10 +34,18 @@ void initialize(lbm& lbm) {
     for (int j = 0; j < lbm.ny; ++j) {
       double x = i * lbm.dx;
       double y = j * lbm.dx;
+
+      double perturbation = 0.;
+
+      perturbation += delta[0] * std::sin(2*x) * std::sin(2*y);
+      perturbation += delta[1] * std::sin(2*x) * std::cos(2*y);
+      perturbation += delta[2] * std::cos(2*x) * std::sin(2*y);
+      perturbation += delta[3] * std::cos(2*x) * std::cos(2*y);
+
               
       lbm.rho[i][j] = 1.0 - 1.5 * lbm.u0 * lbm.u0 * std::cos(x + y) * std::cos(x - y);
-      lbm.u[i][j] = -lbm.u0 * std::cos(x) * std::sin(y);
-      lbm.v[i][j] = lbm.u0 * std::sin(x) * std::cos(y);
+      lbm.u[i][j] = -lbm.u0 * (1 + 0.25 * perturbation) * std::cos(x) * std::sin(y);
+      lbm.v[i][j] =  lbm.u0 * (1 + 0.25 * perturbation) * std::sin(x) * std::cos(y);
     }
   }
 
@@ -53,7 +62,18 @@ void simulateTGV2D(Parameters params, std::string dir, int idx, bool uq)
 
   setGeometry(lbm, params);
 
-  initialize(lbm);
+  std::vector<double> delta(params.polynomialType.size(), 0.0);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::cout << "delta: ";
+  for (int i = 0; i < params.polynomialType.size(); ++i) {
+    std::uniform_real_distribution<> dis(params.parameter1[i], params.parameter2[i]);
+    delta[i] = dis(gen);
+    std::cout << delta[i] << "\t";
+  }
+  std::cout << std::endl;
+
+  initialize(lbm, delta);
 
   std::cout << "start iteration" << std::endl;
   double td = 1.0 / (lbm.physViscosity * (lbm.dx * lbm.dx * 2.0));

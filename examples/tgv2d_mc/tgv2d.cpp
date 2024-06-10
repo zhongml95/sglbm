@@ -1,6 +1,10 @@
 #include "../tgv2d_lbm/tgv2d.h"
 #include <random>
 
+// #define stochastic_Re
+// #define stochastic_viscosity
+#define stochastic_velocity_2d
+
 int main( int argc, char* argv[] )
 {
   Parameters params;
@@ -26,13 +30,17 @@ int main( int argc, char* argv[] )
   std::cout << dir << std::endl;
   std::cout << "finish mkdir" << std::endl;
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<> dis(params.parameter1[0], params.parameter2[0]);
+  #if defined(stochastic_Re)
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(params.parameter1[0], params.parameter2[0]);
+  #endif
 
 
   for ( int i = 0; i < params.nq; i++ ) {
-    params.tau = 3 * (physViscosity * dis(gen)) + 0.5;
+    #if defined(stochastic_Re)
+      params.tau = 3 * (physViscosity * dis(gen)) + 0.5;
+    #endif
     
     simulateTGV2D(params, dir, i, uq);
   }
