@@ -105,22 +105,16 @@ public:
     std::vector<double> parameter2;
     std::vector<std::vector<int>> inds;
     std::vector<std::vector<std::vector<double>>> polynomial_coefficients;
-    // std::vector<std::vector<double>> points;
-    // std::vector<std::vector<double>> weights;
-    // std::vector<std::vector<double>> points_tensor;
-    // std::vector<std::vector<double>> weights_tensor;
     std::vector<double> points;
     std::vector<double> weights;
     std::vector<double> weights_multiplied;
     std::vector<std::vector<int>> points_weights_index_list;
     
-    // std::vector<std::vector<double>> phiRan;
     std::vector<double> phiRan;
     std::vector<double> phiRan_T;
     std::vector<double> t2Product;
     std::vector<double> t2Product_inv;
     std::vector<double> t3Product;
-    // std::vector<std::vector<std::vector<double>>> t3Product;
 
     std::vector<polynomial> polynomial_collection;
 
@@ -167,8 +161,6 @@ public:
         for (int i = 0; i < random_number_dimension; ++i) {
             std::cout << "polynomial " << i+1 << std::endl;
             polynomial op(nq, order, parameter1[i], parameter2[i], polynomial_types[i], points_weights_method);
-            // points[i] = op.points;
-            // weights[i] = op.weights;
             for (int j = 0; j < nq; ++j) {
                 points[i*nq + j] = op.points[j];
                 weights[i*nq + j] = op.weights[j];
@@ -294,14 +286,6 @@ public:
             for (int i = 0; i < No; ++i) {
                 for (int j = 0; j < No; ++j) {
                     for (int m = 0; m < total_nq; ++m) {
-                        // std::vector<int> index = find_index(m, random_number_dimension, nq);
-
-                        // double pi_weights = 1.0;
-                        // for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
-                        //     pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
-                        // }
-                        // tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * pi_weights;
-
                         tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * weights_multiplied[m];
                     }
                 }
@@ -327,16 +311,13 @@ public:
         // Check if t3Product results exist
         if (fileExists(t3ProductFile)) {
             std::cout << "Loading t3Product from file." << std::endl;
-            // readVector3D(t3ProductFile, t3Product);
             readVector1D(t3ProductFile, t3Product);
         } else {
             std::cout << "Calculating t3Product." << std::endl;
             for (int i = 0; i < No; ++i) {
-                //std::cout << "i = " << i << std::endl;
                 for (int j = 0; j < No; ++j) {
                     for (int k = 0; k < No; k++) {
                         for (int m = 0; m < total_nq; ++m) {
-                            // std::vector<int> index = find_index(m, random_number_dimension, nq);
                             double pi_weights = 1.0;
                             for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
                                 pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
@@ -346,7 +327,6 @@ public:
                     }
                 }
             }
-            // saveVector3D(t3ProductFile, t3Product);
             saveVector1D(t3ProductFile, t3Product);
         }
     }
@@ -364,7 +344,6 @@ public:
 
     void ran2chaos(const std::vector<double>& ran, std::vector<double>&chaos)
     {    
-        //std::vector<double> _chaos(No, 0.0);
         std::vector<std::vector<int>> precomputedIndices(total_nq);
         std::vector<double> weighted_ran(total_nq, 1.0);
 
@@ -381,7 +360,6 @@ public:
             chaos[i] = std::inner_product(weighted_ran.begin(), weighted_ran.end(), startIt, 0.0);
             chaos[i] *= t2Product_inv[i];
         }
-        //chaos.swap(_chaos);
     }
 
     void chaos_product(const std::vector<double>& chaos1, const std::vector<double>& chaos2, std::vector<double>&production)

@@ -40,9 +40,6 @@ public:
         points.resize(nq);
         weights.resize(nq);
         phi.resize(order+1);
-        //alpha.resize(order+1);
-        //beta.resize(order+1);
-
 
         for (int i = 0; i < order+1; ++i)
         {
