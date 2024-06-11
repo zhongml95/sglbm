@@ -24,8 +24,12 @@ int main( int argc, char* argv[] )
   
   std::cout << dir << std::endl;
   std::cout << "finish mkdir" << std::endl;
+  double start = omp_get_wtime();
 
   simulateTGV2D(params, dir, 0, uq);
+
+  double end = omp_get_wtime();
+  std::cout << "total MCS time used: " <<  end - start << std::endl;
 
   return 0;
 }

@@ -36,6 +36,8 @@ int main( int argc, char* argv[] )
     std::uniform_real_distribution<> dis(params.parameter1[0], params.parameter2[0]);
   #endif
 
+  
+  double start = omp_get_wtime();
 
   for ( int i = 0; i < params.nq; i++ ) {
     #if defined(stochastic_Re)
@@ -44,6 +46,10 @@ int main( int argc, char* argv[] )
     
     simulateTGV2D(params, dir, i, uq);
   }
+
+  double end = omp_get_wtime();
+  std::cout << "total MCS time used: " <<  end - start << std::endl;
+
 
   return 0;
 }

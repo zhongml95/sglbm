@@ -79,14 +79,10 @@ void simulateTGV2D(Parameters params, std::string dir, int idx, bool uq)
   double td = 1.0 / (lbm.physViscosity * (lbm.dx * lbm.dx * 2.0));
   std::cout << "td: " << td << std::endl;
   int count = 0;
-  //std::clock_t c_start = std::clock();
+  
   double start = omp_get_wtime();
   double start_0 = start;
-  //std::clock_t c_end = std::clock();
-  double end = omp_get_wtime();
   double err = 0.;
-
-  double t = 0.0, t0, t1;
   
   size_t cores = omp_get_num_procs();
   omp_set_dynamic(0);
@@ -95,16 +91,13 @@ void simulateTGV2D(Parameters params, std::string dir, int idx, bool uq)
 
   #pragma omp parallel 
     for (int i = 1; i < int(td * 0.5); ++i) {
-      //for (int i = 1; i < 3; ++i) {
       lbm.collision();
-      //sglbm.boundary();
       lbm.streaming();
-      lbm.reconstruction(); 
-  
+      lbm.reconstruction();   
     }
 
-  std::cout << "total MCS time used: " <<  end - start_0 << std::endl;
-  end = omp_get_wtime();
+  
+  double end = omp_get_wtime();
   count = int(td * 0.5) - 1;
   if (uq) {
     lbm.output(dir, idx, uq);

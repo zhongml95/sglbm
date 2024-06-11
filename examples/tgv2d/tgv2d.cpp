@@ -92,31 +92,23 @@ void initialize(sglbm& sglbm) {
       sglbm.v[i][j] = vChaos;
 
       #if defined(stochastic_velocity)
-        std::vector<double> uRan(sglbm.ops.total_nq, 0.0);
-        std::vector<double> vRan(sglbm.ops.total_nq, 0.0);
-
-        std::vector<double> perturbation_ran(sglbm.ops.total_nq, 0.0);
         std::vector<double> perturbation_chaos(sglbm.ops.No, 0.0);
 
-        std::vector<double> perturbation_ran_0(sglbm.ops.polynomial_collection[0].nq, 0.0);
         std::vector<double> perturbation_chaos_0(sglbm.ops.polynomial_collection[0].order+1, 0.0);
         sglbm.ops.polynomial_collection[0].convert2affinePCE(sglbm.ops.parameter1[0] * std::sin(2*x) * std::sin(2*y), sglbm.ops.parameter2[0] * std::sin(2*x) * std::sin(2*y), perturbation_chaos_0);
         sglbm.u[i][j][1] -= sglbm.u0 * 0.25 * perturbation_chaos_0[1] * std::cos(x) * std::sin(y);
         sglbm.v[i][j][1] += sglbm.u0 * 0.25 * perturbation_chaos_0[1] * std::sin(x) * std::cos(y);
 
-        std::vector<double> perturbation_ran_1(sglbm.ops.polynomial_collection[1].nq, 0.0);
         std::vector<double> perturbation_chaos_1(sglbm.ops.polynomial_collection[1].order+1, 0.0);
         sglbm.ops.polynomial_collection[1].convert2affinePCE(sglbm.ops.parameter1[1] * std::sin(2*x) * std::cos(2*y), sglbm.ops.parameter2[1] * std::sin(2*x) * std::cos(2*y), perturbation_chaos_1);
         sglbm.u[i][j][2] -= sglbm.u0 * 0.25 * perturbation_chaos_1[1] * std::cos(x) * std::sin(y);
         sglbm.v[i][j][2] += sglbm.u0 * 0.25 * perturbation_chaos_1[1] * std::sin(x) * std::cos(y);
 
-        std::vector<double> perturbation_ran_2(sglbm.ops.polynomial_collection[2].nq, 0.0);
         std::vector<double> perturbation_chaos_2(sglbm.ops.polynomial_collection[2].order+1, 0.0);
         sglbm.ops.polynomial_collection[2].convert2affinePCE(sglbm.ops.parameter1[2] * std::cos(2*x) * std::sin(2*y), sglbm.ops.parameter2[2] * std::cos(2*x) * std::sin(2*y), perturbation_chaos_2);
         sglbm.u[i][j][3] -= sglbm.u0 * 0.25 * perturbation_chaos_2[1] * std::cos(x) * std::sin(y);
         sglbm.v[i][j][3] += sglbm.u0 * 0.25 * perturbation_chaos_2[1] * std::sin(x) * std::cos(y);
 
-        std::vector<double> perturbation_ran_3(sglbm.ops.polynomial_collection[3].nq, 0.0);
         std::vector<double> perturbation_chaos_3(sglbm.ops.polynomial_collection[3].order+1, 0.0);
         sglbm.ops.polynomial_collection[3].convert2affinePCE(sglbm.ops.parameter1[3] * std::cos(2*x) * std::cos(2*y), sglbm.ops.parameter2[3] * std::cos(2*x) * std::cos(2*y), perturbation_chaos_3);
         sglbm.u[i][j][4] -= sglbm.u0 * 0.25 * perturbation_chaos_3[1] * std::cos(x) * std::sin(y);
@@ -195,17 +187,13 @@ int main( int argc, char* argv[] )
 #pragma omp single
     {
       if (i % interval == 0) {
-        //c_end = std::clock();
         end = omp_get_wtime();
-        //double time_elapsed_s = 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC;
-        //std::cout << "iter: " << i << " " << "CPI time used: " << time_elapsed_s << "ms" << std::endl;
           
         err = calc_tke_error(sglbm, count);
 
         std::cout << "iter: " << i << " " << "CPI time used: " << end - start << "s" << "\t" << "TKE error " << err << std::endl;
         sglbm.output(dir, i);
 
-        //c_start = c_end;
         start = end;
         t = 0.0;
       }
