@@ -5,9 +5,14 @@
 //#include "matrix.h"
 
 
-int numberPolynomials(int d, int n) {
-    return int(std::tgamma(d+n+1) + 0.5) / int(std::tgamma(d+1) * std::tgamma(n+1)  + 0.5 );
+int numberPolynomials(int N, int P) {
+    double numerator = factorial(N + P);
+    double denominator = factorial(N) * factorial(P);
+    return numerator / denominator;
+    // return int(std::tgamma(d+n+1) + 0.5) / int(std::tgamma(d+1) * std::tgamma(n+1)  + 0.5 );
 }
+
+
 
 std::vector<std::vector<int>> calculateMultiIndices(int d, int n) {
     int No = numberPolynomials(d, n);
