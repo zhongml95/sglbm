@@ -291,7 +291,8 @@ public:
             for (int i = 0; i < No; ++i) {
                 for (int j = 0; j < No; ++j) {
                     for (int m = 0; m < total_nq; ++m) {
-                        tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * weights_multiplied[m];
+                        // tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * weights_multiplied[m];
+                        tensor2d[i][j] +=  phiRan[m * No + i] * phiRan[m * No + j] * weights_multiplied[m];
                     }
                 }
             }
@@ -323,11 +324,12 @@ public:
                 for (int j = 0; j < No; ++j) {
                     for (int k = 0; k < No; k++) {
                         for (int m = 0; m < total_nq; ++m) {
-                            double pi_weights = 1.0;
-                            for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
-                                pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
-                            }
-                            t3Product[i*No*No + j*No + k] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * evaluate(k, points_weights_index_list[m]) * pi_weights;
+                            // double pi_weights = 1.0;
+                            // for (int n_weights = 0; n_weights < random_number_dimension; ++n_weights) {
+                            //     pi_weights *= weights[n_weights * nq + points_weights_index_list[m][n_weights]];
+                            // }
+                            // t3Product[i*No*No + j*No + k] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * evaluate(k, points_weights_index_list[m]) * pi_weights;
+                            t3Product[i*No*No + j*No + k] += phiRan[m * No + i] * phiRan[m * No + j] * phiRan[m * No + k] * weights_multiplied[m];
                         }
                     }
                 }
