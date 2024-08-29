@@ -9,18 +9,6 @@
 #include <unordered_map>
 
 
-// Function to calculate factorial of a number using double
-double factorial(int n) {
-    if (n == 0) {
-        return 1.0;
-    }
-    double result = 1.0;
-    for (int i = 1; i <= n; ++i) {
-        result *= i;
-    }
-    return result;
-}
-
 bool directoryExists(const std::string& path) {
     struct stat statbuf;
     if (stat(path.c_str(), &statbuf) != 0) {
