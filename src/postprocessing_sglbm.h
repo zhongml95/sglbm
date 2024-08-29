@@ -1,4 +1,10 @@
+// postprocessing_sglbm.h
+#ifndef POSTPROCESSING_SGLBM_H
+#define POSTPROCESSING_SGLBM_H
+
 #include "sglbm.h"
+
+class sglbm;
 
 void velocity_central(std::string dir, sglbm& sglbm, int idx, int idy) {
 
@@ -82,15 +88,15 @@ void velocity_all(std::string dir, sglbm& sglbm) {
 
 void totalKineticEnergy(sglbm& sglbm, std::vector<double>&tke, double&tkeAna, int t)
 {
-  std::vector<double> u2Chaos(sglbm.ops.No, 0.0);
-  std::vector<double> v2Chaos(sglbm.ops.No, 0.0);
-  std::vector<double> tkeChaos(sglbm.ops.No, 0.0);
+  std::vector<double> u2Chaos(sglbm.No, 0.0);
+  std::vector<double> v2Chaos(sglbm.No, 0.0);
+  std::vector<double> tkeChaos(sglbm.No, 0.0);
   for (int i = 0; i < sglbm.nx; ++i) {
     for (int j = 0; j < sglbm.ny; ++j) {
       sglbm.ops.chaos_product(sglbm.u[i][j], sglbm.u[i][j], u2Chaos);
       sglbm.ops.chaos_product(sglbm.v[i][j], sglbm.v[i][j], v2Chaos);
       
-      for (int alpha = 0; alpha < sglbm.ops.No; ++alpha) {
+      for (int alpha = 0; alpha < sglbm.No; ++alpha) {
         tke[alpha] += ((u2Chaos[alpha] + v2Chaos[alpha]) *  0.5 / (sglbm.nx*sglbm.ny*sglbm.u0*sglbm.u0));
       }
                
@@ -113,7 +119,7 @@ void outputTKE(std::string dir, sglbm& sglbm, int t, double total_computational_
   std::ofstream outputFileTKE(filenameTKE);
   double tkeAna = 0.0;
 
-  std::vector<double> tke(sglbm.ops.No, 0.0);
+  std::vector<double> tke(sglbm.No, 0.0);
   totalKineticEnergy(sglbm, tke, tkeAna, t);
 
   outputFileTKE.precision(20);  
@@ -121,3 +127,6 @@ void outputTKE(std::string dir, sglbm& sglbm, int t, double total_computational_
   outputFileTKE << sglbm.ops.mean(tke) << "\t" << sglbm.ops.std(tke) << "\t" << tkeAna << "\t" << total_computational_time;
   outputFileTKE.close();
 }
+
+
+#endif // POSTPROCESSING_SGLBM_H

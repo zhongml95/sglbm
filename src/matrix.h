@@ -1,3 +1,7 @@
+// matrix.h
+#ifndef MATRIX_H
+#define MATRIX_H
+
 #include <iostream>
 #include <cmath>
 #include <vector>
@@ -124,6 +128,39 @@ std::vector<std::vector<double>> transposeMatrix(const std::vector<std::vector<d
     return result;
 }
 
+// Function to compute the Frobenius norm of a matrix
+double frobeniusNorm(const std::vector<std::vector<double>>& matrix) {
+    double sum = 0.0;
+    for (const auto& row : matrix) {
+        for (double val : row) {
+            sum += val * val;
+        }
+    }
+    return std::sqrt(sum);
+}
+
+// Function to check if matrix A is converging to matrix B
+bool isConverging(const std::vector<std::vector<double>>& A, const std::vector<std::vector<double>>& B, double& former_norm, double tolerance) {
+    // Ensure A and B are the same size
+    if (A.size() != B.size() || A[0].size() != B[0].size()) {
+        throw std::invalid_argument("Matrices must be the same size");
+    }
+
+    std::vector<std::vector<double>> diff(A.size(), std::vector<double>(A[0].size()));
+    for (size_t i = 0; i < A.size(); ++i) {
+        for (size_t j = 0; j < A[0].size(); ++j) {
+            diff[i][j] = A[i][j] - B[i][j];
+        }
+    }
+
+    double norm = frobeniusNorm(diff);
+    bool converge = (std::fabs(norm-former_norm)/former_norm) <= tolerance;
+    //std::cout << norm << std::endl;
+    former_norm = norm;
+    return converge;
+}
+
+
 // Function to perform Householder QR decomposition
 void householderQR(std::vector<std::vector<double>>& A, std::vector<std::vector<double>>& Q, std::vector<std::vector<double>>& R) {
     int m = A.size(); // Number of rows
@@ -164,6 +201,29 @@ void householderQR(std::vector<std::vector<double>>& A, std::vector<std::vector<
     }
 }
 
+void Householder(std::vector<std::vector<double>>& J, std::vector<std::vector<double>>& R)
+{
+    int nq = J.size();
+    std::vector<std::vector<double>> Q = generateIdentityMatrix(nq);
+    std::vector<std::vector<double>> J_new = copyMatrix(J);
+    int iter = 1;
+    double norm = 1;
+
+    while (true) {
+        householderQR(J, Q, R);
+        J_new = matrixMultiplication(R, Q);
+        if (iter % 100 == 0) {
+            if (isConverging(J, J_new, norm, 1E-13)) {
+                std::cout << iter << " iterations needed." << std::endl;
+                break;
+            }
+        }
+        J.swap(J_new);
+        iter++;
+    }
+}
+
+
 // Function to construct the Jacobi matrix for Gaussian-Hermite quadrature
 std::vector<std::vector<double>> constructJacobiMatrix_Hermite(int n) {
     if (n <= 1) {
@@ -193,35 +253,14 @@ std::vector<std::vector<double>> constructJacobiMatrix_Legendre(int n) {
     return J;
 }
 
-// Function to compute the Frobenius norm of a matrix
-double frobeniusNorm(const std::vector<std::vector<double>>& matrix) {
-    double sum = 0.0;
-    for (const auto& row : matrix) {
-        for (double val : row) {
-            sum += val * val;
-        }
+void constructJacobiMatrix(int nq, int polynomialType, std::vector<std::vector<double>>& J) {
+    if (polynomialType == 0) {
+        J = constructJacobiMatrix_Legendre(nq);
+    } else if (polynomialType == 1) {
+        J = constructJacobiMatrix_Hermite(nq);
     }
-    return std::sqrt(sum);
 }
 
-// Function to check if matrix A is converging to matrix B
-bool isConverging(const std::vector<std::vector<double>>& A, const std::vector<std::vector<double>>& B, double& former_norm, double tolerance) {
-    // Ensure A and B are the same size
-    if (A.size() != B.size() || A[0].size() != B[0].size()) {
-        throw std::invalid_argument("Matrices must be the same size");
-    }
 
-    std::vector<std::vector<double>> diff(A.size(), std::vector<double>(A[0].size()));
-    for (size_t i = 0; i < A.size(); ++i) {
-        for (size_t j = 0; j < A[0].size(); ++j) {
-            diff[i][j] = A[i][j] - B[i][j];
-        }
-    }
 
-    double norm = frobeniusNorm(diff);
-    bool converge = (std::fabs(norm-former_norm)/former_norm) <= tolerance;
-    //std::cout << norm << std::endl;
-    former_norm = norm;
-    return converge;
-}
-
+#endif // MATRIX_H
