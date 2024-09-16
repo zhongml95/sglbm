@@ -1,16 +1,19 @@
-# Makefile for compiling test.cpp with OpenMP and GSL
-
 # Compiler settings
 CXX = g++
 CXXFLAGS = -O3 -fopenmp
 INCLUDES = -I/home/zhongml95/gsl/include
-LIBS = -lgsl -lgslcblas # Link against GSL libraries
+LIBS = -lgsl -lgslcblas
 
 # Target executable
 TARGET = test
 
-# Source files
-SOURCES = test.cpp
+# Source directory
+SRC_DIR = ../../src
+
+# Find all .cpp files in the source directory
+SOURCES = test.cpp $(wildcard $(SRC_DIR)/*.cpp)
+
+# Create a list of object files
 OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target

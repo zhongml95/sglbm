@@ -1,6 +1,6 @@
 #ifndef SGLBM_H
 #define SGLBM_H
-#include "polynomials.h"
+#include "generalized_polynomial_chaos.h"
 #include <iostream>
 #include <fstream>
 #include <ctime>
@@ -12,6 +12,7 @@
 // #define onlyUVCollocation
 // #define stochastic_omega
 #define constant_omega
+
 
 class sglbm{
 public:
@@ -37,7 +38,7 @@ public:
   double omega0;
   std::string dir;
 
-  polynomials ops;
+  GeneralizedPolynomialChaos ops;
   int No;
   int total_nq;
   std::vector<int> polynomial_types;
@@ -81,12 +82,12 @@ public:
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
 
-  sglbm(std::string _dir, const Parameters& params)
-        : ops(params.nq, params.order, params.parameter1, params.parameter2, params.polynomialType, params.points_weights_method) 
+  sglbm(std::string _dir, const Parameters& params, Quadrature::QuadratureMethod quadratureMethod)
+        : ops(params.order, params.nq, params.parameter1, params.parameter2, params.polynomialType, quadratureMethod) 
   {
     dir = _dir;
-    No = ops.get_polynomials_order();
-    total_nq = ops.get_quadrature_points_number();
+    No = ops.getPolynomialsOrder();
+    total_nq = ops.getQuadraturePointsNumber();
 
     polynomial_types = params.polynomialType;
     parameter1 = params.parameter1;
@@ -273,14 +274,14 @@ public:
     
     for (int i = 0; i < nx; ++i) {
       for (int j = 0; j < ny; ++j) {
-        ops.chaos2ran(u[i][j], uRan);
-        ops.chaos2ran(v[i][j], vRan);
+        ops.chaosToRandom(u[i][j], uRan);
+        ops.chaosToRandom(v[i][j], vRan);
         for (int k = 0; k < 9; ++k) {
           for (int sample = 0; sample < total_nq; sample++) {
             feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
         }
 
-        ops.ran2chaos(feqRan, feqChaos);
+        ops.randomToChaos(feqRan, feqChaos);
         feq[i][j][k] = feqChaos;
         f[i][j][k] = feqChaos;
         F[i][j][k] = feqChaos;
@@ -354,21 +355,21 @@ public:
     std::vector<double> _v2(No, 0.0);
     std::vector<double> _feq_without_rho(No, 0.0);
     std::vector<double> _t2(No, 0.0);
-    ops.chaos_product(_u, _u, _u2);
-    ops.chaos_product(_v, _v, _v2);
+    ops.chaosProduct(_u, _u, _u2);
+    ops.chaosProduct(_v, _v, _v2);
 
     for (int i = 0; i < No; ++i) {
       _t2[i] = _u[i] * _cx + _v[i] * _cy;
     }
     std::vector<double> _t2_2(No, 0.0);
-    ops.chaos_product(_t2, _t2, _t2_2);
+    ops.chaosProduct(_t2, _t2, _t2_2);
 
     for (int i = 0; i < No; ++i) {
       double t1 = _u2[i] + _v2[i];
       _feq_without_rho[i] = _w * (1.0 + 3.0 * _t2[i] + 4.5 * _t2_2[i] - 1.5 * t1);
     }
 
-    ops.chaos_product(_r, _feq_without_rho, _feq);
+    ops.chaosProduct(_r, _feq_without_rho, _feq);
     return _feq;
   }
 
@@ -441,7 +442,7 @@ public:
         }
         rho[i][j] = rChaos;
 
-        ops.chaos2ran(rChaos, rRan);
+        ops.chaosToRandom(rChaos, rRan);
 
         if (material[i][j] == 1) {
           for (int alpha = 0; alpha < No; ++alpha) {
@@ -451,16 +452,16 @@ public:
             }
           }            
           //std::cout << "check" << std::endl;
-          ops.chaos2ran(ruChaos, ruRan);
-          ops.chaos2ran(rvChaos, rvRan);
+          ops.chaosToRandom(ruChaos, ruRan);
+          ops.chaosToRandom(rvChaos, rvRan);
 
           for (int sample = 0; sample < total_nq; sample++) {
             uRan[sample] = ruRan[sample] / rRan[sample];
             vRan[sample] = rvRan[sample] / rRan[sample];
           }
 
-          ops.ran2chaos(uRan, uChaos);
-          ops.ran2chaos(vRan, vChaos);
+          ops.randomToChaos(uRan, uChaos);
+          ops.randomToChaos(vRan, vChaos);
 
           u[i][j] = uChaos;
           v[i][j] = vChaos;
@@ -479,7 +480,7 @@ public:
         }
         // Stochastic velocity boundary condition
         else if (material[i][j] == 3){
-          ops.chaos2ran(u[i][j], uRan);
+          ops.chaosToRandom(u[i][j], uRan);
           std::vector<double> empty(total_nq, 0.0);
           vRan.swap(empty);
         }
@@ -490,9 +491,9 @@ public:
             std::vector<double> rvvChaos(No, 0.0);
             std::vector<double> ruvChaos(No, 0.0);
 
-            ops.chaos_product(ruChaos, uChaos, ruuChaos);
-            ops.chaos_product(rvChaos, vChaos, rvvChaos);
-            ops.chaos_product(ruChaos, vChaos, ruvChaos);
+            ops.chaosProduct(ruChaos, uChaos, ruuChaos);
+            ops.chaosProduct(rvChaos, vChaos, rvvChaos);
+            ops.chaosProduct(ruChaos, vChaos, ruvChaos);
 
             for (int alpha = 0; alpha < No; ++alpha) {
               double t1 = ruuChaos[alpha] + rvvChaos[alpha];
@@ -506,7 +507,7 @@ public:
               feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
             }
 
-            ops.ran2chaos(feqRan, feqSlice);
+            ops.randomToChaos(feqRan, feqSlice);
             // for (int alpha = 0; alpha < No; ++alpha) {
             //   feq[i][j][k][alpha] = feqSlice[alpha];
             // }
@@ -539,9 +540,9 @@ public:
         std::vector<double> u2(No, 0.0);
         std::vector<double> v2(No, 0.0);
         std::vector<double> mag(No, 0.0);
-        sglbm::ops.chaos_product(u[i][j], u[i][j], u2);
-        sglbm::ops.chaos_product(v[i][j], v[i][j], v2);
-        sglbm::ops.chaos_sum(u2, v2, mag);
+        sglbm::ops.chaosProduct(u[i][j], u[i][j], u2);
+        sglbm::ops.chaosProduct(v[i][j], v[i][j], v2);
+        sglbm::ops.chaosSum(u2, v2, mag);
 
         outputFile << x << "\t" << y << "\t" << std::sqrt(ops.mean(mag)) << "\t" << ops.mean(u[i][j]) * conversionVelocity << "\t" << ops.mean(v[i][j]) * conversionVelocity << "\t" << std::sqrt(ops.std(mag)) << "\t" << ops.std(u[i][j]) * conversionVelocity << "\t" << ops.std(v[i][j]) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
       }
@@ -559,10 +560,10 @@ public:
       std::vector<double> uSlice(No, 0.0);
       std::vector<double> feqSlice(No, 0.0);
       std::vector<double> chaos(2,0.0);
-      ops.convert2affinePCE(parameter1[0]*u0, parameter2[0]*u0, polynomial_types[0],chaos);
+      ops.convert2affinePCE(parameter1[0]*u0, parameter2[0]*u0, polynomial_types[0], chaos);
       uSlice[0] = chaos[0];
       uSlice[1] = chaos[1];
-      ops.chaos2ran(uSlice, uRan);
+      ops.chaosToRandom(uSlice, uRan);
 
       #pragma omp for collapse(2)
       for (int i = 0; i < nx; ++i){
@@ -584,7 +585,7 @@ public:
             for (int alpha = 0; alpha < No; ++alpha) {
               rSlice[alpha] = rho[i][j-1][alpha];
             }
-            ops.chaos2ran(rSlice, rRan);
+            ops.chaosToRandom(rSlice, rRan);
 
             for (int k = 0; k < 9; ++k) {
               std::vector<double> feqRan(total_nq, 0.0);
@@ -592,7 +593,7 @@ public:
                 feqRan[sample] = equilibrium(rRan[sample], uRan[sample], vRan[sample], cx[k], cy[k], w[k]);
               }
 
-              ops.ran2chaos(feqRan, feqSlice);
+              ops.randomToChaos(feqRan, feqSlice);
               for (int alpha = 0; alpha < No; ++alpha) {
                 F[i][j][k][alpha] = feqSlice[alpha] + F[i][j-1][k][alpha] - feq[i][j-1][k][alpha];
               }
