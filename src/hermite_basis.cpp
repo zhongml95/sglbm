@@ -29,6 +29,12 @@ static std::vector<double> computeHermiteCoefficients(int n) {
             Hn[i] += c * Hn_minus2[i];
         }
 
+        // Normalize the coefficients by the largest power term
+        for (int i = 0; i <= n; ++i) {
+            Hn[i] /= Hn[n];
+        }
+
+
         return Hn;
     }
 }

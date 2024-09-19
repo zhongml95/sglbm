@@ -46,23 +46,33 @@ private:
     std::vector<double> points;
     std::vector<double> weights;
 
-    void computeQuadrature() {
+void computeQuadrature() {
 #ifdef USE_GSL
-        if (method == QuadratureMethod::GSL) {
-            computeQuadratureGSL();
-        } else {
-            computeQuadratureHouseholderQR();
-        }
-#else
+    if (method == QuadratureMethod::GSL) {
+        std::cout << "Using GSL quadrature method." << std::endl;
+        computeQuadratureGSL();
+    } else if (method == QuadratureMethod::HouseholderQR) {
+        std::cout << "Using HouseholderQR quadrature method." << std::endl;
         computeQuadratureHouseholderQR();
-#endif
+    } else {
+        std::cerr << "Warning: Unsupported quadrature method. Defaulting to HouseholderQR." << std::endl;
+        computeQuadratureHouseholderQR();
     }
+#else
+    if (method != QuadratureMethod::HouseholderQR) {
+        std::cerr << "Warning: GSL is not enabled. Falling back to HouseholderQR quadrature method." << std::endl;
+    }
+    std::cout << "Using HouseholderQR quadrature method." << std::endl;
+    computeQuadratureHouseholderQR();
+#endif
+}
+
 
 #ifdef USE_GSL
     void computeQuadratureGSL() {
         // Check if PolynomialBasis supports GSL
         if constexpr (std::is_same_v<PolynomialBasis, Polynomials::Legendre::LegendreBasis>) {
-            computeQuadraturePointsWeightsGSL(order + 1, points, weights);
+            computeQuadraturePointsWeightsGSL(order, points, weights);
 
             // Normalize weights if necessary
             double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
@@ -97,15 +107,15 @@ private:
 
     void computeQuadratureHouseholderQR() {
         // Step 1: Construct the Jacobi matrix using the basis
-        auto J = basis->constructJacobiMatrix(order + 1);
+        auto J = basis->constructJacobiMatrix(order);
 
         // Step 2: Compute eigenvalues (quadrature points) using Householder method
         std::vector<std::vector<double>> R;
         computeEigenvalues(J, R);
 
         // Extract eigenvalues (diagonal elements of R)
-        points.resize(order + 1);
-        for (int i = 0; i <= order; ++i) {
+        points.resize(order);
+        for (int i = 0; i < order; ++i) {
             points[i] = R[i][i];
         }
 
@@ -120,7 +130,7 @@ private:
         weights.resize(points.size());
         for (size_t i = 0; i < points.size(); ++i) {
             double x = points[i];
-            weights[i] = computeQuadratureWeight(*basis, order + 1, x);
+            weights[i] = computeQuadratureWeight(*basis, order, x);
         }
 
         // Normalize weights if necessary

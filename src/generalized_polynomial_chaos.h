@@ -7,7 +7,7 @@
 #include <cmath>
 #include <string>
 
-#include "util.h"
+#include "utils.h"
 
 // Include the polynomial basis and quadrature headers
 #include "legendre_basis.h"
@@ -56,6 +56,22 @@ public:
     int getQuadraturePointsNumber() const;
     double getParameter1(int i) const;
     double getParameter2(int i) const;
+    void getPointsAndWeights(std::vector<std::vector<double>>& points, std::vector<std::vector<double>>& weights);
+    void getTensors(std::vector<double>& t2Product, std::vector<double>& t2Product_inv, std::vector<double>& t3Product);
+    std::vector<double> getWeightsMultiplied() const;
+    // Template function to get the polynomial basis at a specific dimension (i)
+    template <typename PolynomialBasis>
+    std::shared_ptr<PolynomialBasis> getPolynomialBasis(int i) const;
+    std::vector<std::vector<int>> getMultiIndices() const;
+
+    void getPhiRan(std::vector<double>& phiRan);
+    void getCoefficients(std::vector<std::vector<std::vector<double>>>& polynomialCoeffs);
+
+
+    // void get_polynomial_coefficients(std::vector<std::vector<double>>& polynomialCoeffs) {
+    //     polynomialCoeffs = this->polynomialCoeffs;
+    // }
+
 
 private:
     size_t pointsWeightsMethod;
@@ -72,6 +88,7 @@ private:
     std::vector<std::vector<double>> weights; // Weights for each dimension
     std::vector<double> weightsMultiplied;    // Combined weights
     std::vector<std::vector<int>> pointsWeightsIndexList;
+    std::vector<std::vector<std::vector<double>>> coefficients; // Coefficients of polynomials
 
     Quadrature::QuadratureMethod quadratureMethod;
 
@@ -89,6 +106,8 @@ private:
     void initializePolynomialBases();
     void initializeQuadratures();
     void initializeMatrices();
+
+    void initializePolynomialCoefficients();
 
     // Helper functions
     std::vector<int> findIndex(int idx, int dimension, int nq);

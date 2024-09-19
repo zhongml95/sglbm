@@ -1,8 +1,9 @@
 # Compiler settings
 CXX = g++
-CXXFLAGS = -O3 -fopenmp
+CXXFLAGS = -O3 -fopenmp -DUSE_GSL  # Add -DUSE_GSL here for global definition
 INCLUDES = -I/home/zhongml95/gsl/include
-LIBS = -lgsl -lgslcblas
+LDFLAGS = -L/home/zhongml95/gsl/lib
+LIBS = -lgsl -lgslcblas  # Link against GSL libraries
 
 # Target executable
 TARGET = test
@@ -10,26 +11,36 @@ TARGET = test
 # Source directory
 SRC_DIR = ../../src
 
-# Find all .cpp files in the source directory
+# Build directory for object files
+BUILD_DIR = build
+
+# Source files
 SOURCES = test.cpp $(wildcard $(SRC_DIR)/*.cpp)
 
-# Create a list of object files
-OBJECTS = $(SOURCES:.cpp=.o)
+# Object files will be placed in the build directory
+OBJECTS = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(notdir $(SOURCES)))
+
+# Include directories
+VPATH = $(SRC_DIR)
 
 # Default target
-all: $(TARGET)
+all: $(BUILD_DIR) $(TARGET)
+
+# Create the build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 # Linking the target executable
 $(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(LIBS)
 
-# Compiling source files
-%.o: %.cpp
+# Compiling source files, placing the output in the build directory
+$(BUILD_DIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 # Cleaning up
 clean:
-	rm -f $(TARGET) $(OBJECTS)
+	rm -rf $(TARGET) $(BUILD_DIR)
 
 # Phony targets
 .PHONY: all clean

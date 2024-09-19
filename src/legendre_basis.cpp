@@ -64,6 +64,12 @@ std::vector<std::vector<double>> LegendreBasis::constructJacobiMatrix(int n) con
 // Evaluate the Legendre polynomial of order n at point x
 double LegendreBasis::evaluatePolynomial(int n, double x) const {
     std::vector<double> coeffs = computeCoefficients(n);
+
+    // Normalize the coefficients by the largest power term
+    for (int i = 0; i <= n; ++i) {
+        coeffs[i] /= coeffs[n];
+    }
+
     double result = 0.0;
     for (int i = 0; i <= n; ++i) {
         result += coeffs[i] * std::pow(x, i);

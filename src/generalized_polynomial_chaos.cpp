@@ -88,6 +88,7 @@ GeneralizedPolynomialChaos::GeneralizedPolynomialChaos(int _order,
 
     // Initialize polynomial bases, quadratures, and matrices
     initializePolynomialBases();
+    initializePolynomialCoefficients();
     initializeQuadratures();
     initializeMatrices();
 
@@ -169,6 +170,20 @@ void GeneralizedPolynomialChaos::initializeMatrices() {
     }
 }
 
+// Initialize polynomial coefficients
+void GeneralizedPolynomialChaos::initializePolynomialCoefficients() {
+    coefficients.resize(randomNumberDimension);
+    for (int phi_i = 0; phi_i < randomNumberDimension; ++phi_i) {
+        auto basis = std::static_pointer_cast<LegendreBasis>(polynomialBases[phi_i]);
+
+        coefficients[phi_i].resize(No);
+        for (int i = 0; i < No; ++i) {
+            coefficients[phi_i][i] = basis->computeCoefficients(i);
+        }
+    }
+
+}
+
 // Evaluate n_order polynomial at point k
 double GeneralizedPolynomialChaos::evaluate(int n_order, int k) {
     double result = 1.0;
@@ -221,7 +236,7 @@ double GeneralizedPolynomialChaos::evaluate_polynomial(int order_max, int k) {
 void GeneralizedPolynomialChaos::evaluatePhiRan() {
     for (int k = 0; k < totalNq; ++k) {
         for (int i = 0; i < No; ++i) {
-            phiRan[k * No + i] = evaluate(i, k);
+            phiRan[k * No + i] = evaluate(i, pointsWeightsIndexList[k]);
             phiRan_T[i * totalNq + k] = phiRan[k * No + i];
         }
     }
@@ -279,13 +294,27 @@ void GeneralizedPolynomialChaos::computeTensors() {
         readVector1D(t2ProductFile, t2Product);
     } else {
         std::cout << "Calculating t2Product." << std::endl;
+        // for (int i = 0; i < No; ++i) {
+        //     double sum = 0.0;
+        //     for (int k = 0; k < totalNq; ++k) {
+        //         sum += phiRan[k * No + i] * phiRan[k * No + i] * weightsMultiplied[k];
+        //     }
+        //     t2Product[i] = sum;
+        // }
+
+        std::vector<std::vector<double>> tensor2d(No, std::vector<double>(No, 0.0));
         for (int i = 0; i < No; ++i) {
-            double sum = 0.0;
-            for (int k = 0; k < totalNq; ++k) {
-                sum += phiRan[k * No + i] * phiRan[k * No + i] * weightsMultiplied[k];
+            for (int j = 0; j < No; ++j) {
+                for (int m = 0; m < totalNq; ++m) {
+                    // tensor2d[i][j] += evaluate(i, points_weights_index_list[m]) * evaluate(j, points_weights_index_list[m]) * weights_multiplied[m];
+                    tensor2d[i][j] +=  phiRan[m * No + i] * phiRan[m * No + j] * weightsMultiplied[m];
+                }
             }
-            t2Product[i] = sum;
         }
+        for (int i = 0; i < No; ++i) {
+            t2Product[i] = tensor2d[i][i];
+        }
+
         saveVector1D(t2ProductFile, t2Product);
     }
 
@@ -416,4 +445,41 @@ double GeneralizedPolynomialChaos::getParameter1(int i) const {
 
 double GeneralizedPolynomialChaos::getParameter2(int i) const {
     return parameter2[i];
+}
+
+void GeneralizedPolynomialChaos::getPointsAndWeights(std::vector<std::vector<double>>& points, std::vector<std::vector<double>>& weights) {
+    points = this->points;
+    weights = this->weights;
+}
+
+std::vector<double> GeneralizedPolynomialChaos::getWeightsMultiplied() const {
+    return weightsMultiplied;
+}
+
+void GeneralizedPolynomialChaos::getTensors(std::vector<double>& t2Product, std::vector<double>& t2Product_inv, std::vector<double>& t3Product) {
+    t2Product = this->t2Product;
+    t2Product_inv = this->t2Product_inv;
+    t3Product = this->t3Product;
+}
+
+template <typename PolynomialBasis>
+std::shared_ptr<PolynomialBasis> GeneralizedPolynomialChaos::getPolynomialBasis(int dimension) const {
+    if (dimension < 0 || dimension >= randomNumberDimension) {
+        throw std::out_of_range("Dimension is out of bounds");
+    }
+
+    // Cast the void pointer back to the correct polynomial basis type
+    return std::static_pointer_cast<PolynomialBasis>(polynomialBases[dimension]);
+}
+
+std::vector<std::vector<int>> GeneralizedPolynomialChaos::getMultiIndices() const {
+    return inds;
+}
+
+void GeneralizedPolynomialChaos::getPhiRan(std::vector<double>& phiRan) {
+    phiRan = this->phiRan;
+}
+
+void GeneralizedPolynomialChaos::getCoefficients(std::vector<std::vector<std::vector<double>>>& polynomialCoeffs) {
+    polynomialCoeffs = this->coefficients;
 }
