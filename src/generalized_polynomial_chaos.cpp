@@ -9,13 +9,11 @@
 #include <sys/stat.h>
 
 // Include the polynomial basis and quadrature headers
-#include "legendre_basis.h"
-#include "hermite_basis.h"
-#include "quadrature.h"
+// #include "quadrature.h"
 
 // Namespace aliases
-using LegendreBasis = Polynomials::Legendre::LegendreBasis;
-using HermiteBasis = Polynomials::Hermite::HermiteBasis;
+using LegendreBasis = Polynomials::LegendreBasis;
+using HermiteBasis = Polynomials::HermiteBasis;
 // using Quadrature = Quadrature::Quadrature;
 
 // Helper functions for file I/O and directory management
@@ -66,28 +64,20 @@ using HermiteBasis = Polynomials::Hermite::HermiteBasis;
 // Constructor
 GeneralizedPolynomialChaos::GeneralizedPolynomialChaos(int _order,
                                                        int _nq,
-                                                       const std::vector<double>& _parameter1,
-                                                       const std::vector<double>& _parameter2,
-                                                       const std::vector<int>& _polynomialTypes,
+                                                       const std::vector<std::shared_ptr<Polynomials::PolynomialBasis>>& _polynomialBases,
                                                        Quadrature::QuadratureMethod _quadratureMethod)
     : order(_order),
       nq(_nq),
-      parameter1(_parameter1),
-      parameter2(_parameter2),
-      polynomialTypes(_polynomialTypes),
+      polynomialBases(_polynomialBases),
       quadratureMethod(_quadratureMethod) {
 
-    randomNumberDimension = static_cast<int>(polynomialTypes.size());
-    if (randomNumberDimension != parameter1.size() || randomNumberDimension != parameter2.size()) {
-        throw std::invalid_argument("Dimension mismatch in input parameters.");
-    }
+    randomNumberDimension = static_cast<int>(polynomialBases.size());
 
     // Calculate multi-indices
     calculateMultiIndices(randomNumberDimension, order, inds);
     No = static_cast<int>(inds.size());
 
-    // Initialize polynomial bases, quadratures, and matrices
-    initializePolynomialBases();
+    // Initialize polynomial coefficients, quadratures, and matrices
     initializePolynomialCoefficients();
     initializeQuadratures();
     initializeMatrices();
@@ -99,60 +89,34 @@ GeneralizedPolynomialChaos::GeneralizedPolynomialChaos(int _order,
     computeTensors();
 }
 
-// Initialize polynomial bases
-void GeneralizedPolynomialChaos::initializePolynomialBases() {
-    polynomialBases.resize(randomNumberDimension);
 
-    for (int i = 0; i < randomNumberDimension; ++i) {
-        if (polynomialTypes[i] == 0) {
-            // Legendre polynomials
-            auto basis = std::make_shared<LegendreBasis>();
-            polynomialBases[i] = basis;
-        } else if (polynomialTypes[i] == 1) {
-            // Hermite polynomials
-            auto basis = std::make_shared<HermiteBasis>();
-            polynomialBases[i] = basis;
-        } else {
-            throw std::invalid_argument("Unsupported polynomial type.");
-        }
-    }
-}
 
 // Initialize quadratures
 void GeneralizedPolynomialChaos::initializeQuadratures() {
-    quadratures.resize(randomNumberDimension);
     points.resize(randomNumberDimension);
     weights.resize(randomNumberDimension);
 
     totalNq = static_cast<int>(std::pow(nq, randomNumberDimension));
 
     for (int i = 0; i < randomNumberDimension; ++i) {
-        if (polynomialTypes[i] == 0) {
-            // Legendre polynomials
-            auto basis = std::static_pointer_cast<LegendreBasis>(polynomialBases[i]);
-            Quadrature::Quadrature<LegendreBasis> quadrature(nq, quadratureMethod);
-            quadratures[i] = std::make_shared<Quadrature::Quadrature<LegendreBasis>>(quadrature);
-            points[i] = quadrature.getPoints();
-            weights[i] = quadrature.getWeights();
-        } else if (polynomialTypes[i] == 1) {
-            // Hermite polynomials
-            auto basis = std::static_pointer_cast<HermiteBasis>(polynomialBases[i]);
-            Quadrature::Quadrature<HermiteBasis> quadrature(nq, quadratureMethod);
-            quadratures[i] = std::make_shared<Quadrature::Quadrature<HermiteBasis>>(quadrature);
-            points[i] = quadrature.getPoints();
-            weights[i] = quadrature.getWeights();
-        }
+        auto quadrature = polynomialBases[i]->getQuadrature(nq, quadratureMethod);
+        points[i] = quadrature->getPoints();
+        weights[i] = quadrature->getWeights();
     }
 }
 
+
+
 // Initialize matrices
 void GeneralizedPolynomialChaos::initializeMatrices() {
+    // std::cout << "Initializing matrices..." << std::endl;
     // Resize vectors
     phiRan.resize(totalNq * No, 0.0);
     phiRan_T.resize(totalNq * No, 0.0);
     t2Product.resize(No, 0.0);
     t2Product_inv.resize(No, 0.0);
     t3Product.resize(No * No * No, 0.0);
+
 
     // Generate pointsWeightsIndexList
     pointsWeightsIndexList.resize(totalNq, std::vector<int>(randomNumberDimension));
@@ -210,17 +174,10 @@ double GeneralizedPolynomialChaos::evaluate(int n_order, const std::vector<int>&
 
 // Evaluate polynomial basis at given order, point x, and dimension phi_i
 double GeneralizedPolynomialChaos::evaluate(int n_order, double x, int phi_i) {
-    if (polynomialTypes[phi_i] == 0) {
-        // Legendre
-        auto basis = std::static_pointer_cast<LegendreBasis>(polynomialBases[phi_i]);
-        return basis->evaluatePolynomial(n_order, x);
-    } else if (polynomialTypes[phi_i] == 1) {
-        // Hermite
-        auto basis = std::static_pointer_cast<HermiteBasis>(polynomialBases[phi_i]);
-        return basis->evaluatePolynomial(n_order, x);
-    } else {
-        throw std::invalid_argument("Unsupported polynomial type.");
+    if (phi_i < 0 || phi_i >= polynomialBases.size()) {
+        throw std::out_of_range("Invalid dimension index phi_i.");
     }
+    return polynomialBases[phi_i]->evaluatePolynomial(n_order, x);
 }
 
 // Evaluate the polynomial at kth point up to order_max
@@ -234,11 +191,14 @@ double GeneralizedPolynomialChaos::evaluate_polynomial(int order_max, int k) {
 
 // Evaluate phiRan matrix
 void GeneralizedPolynomialChaos::evaluatePhiRan() {
+    std::cout << "Evaluating phiRan matrix..." << std::endl;
     for (int k = 0; k < totalNq; ++k) {
         for (int i = 0; i < No; ++i) {
             phiRan[k * No + i] = evaluate(i, pointsWeightsIndexList[k]);
+            std::cout << phiRan[k * No + i] << " ";
             phiRan_T[i * totalNq + k] = phiRan[k * No + i];
         }
+        std::cout << std::endl;
     }
 }
 
@@ -275,6 +235,7 @@ std::vector<int> GeneralizedPolynomialChaos::findIndex(int idx, int dimension, i
 
 // Compute tensors (t2Product and t3Product)
 void GeneralizedPolynomialChaos::computeTensors() {
+    std::cout << "Computing tensors..." << std::endl;
     // File paths for saved matrices
     const std::string directoryT2Product = "./t2Product/";
     if (!directoryExists(directoryT2Product)) {
@@ -439,13 +400,6 @@ int GeneralizedPolynomialChaos::getQuadraturePointsNumber() const {
     return totalNq;
 }
 
-double GeneralizedPolynomialChaos::getParameter1(int i) const {
-    return parameter1[i];
-}
-
-double GeneralizedPolynomialChaos::getParameter2(int i) const {
-    return parameter2[i];
-}
 
 void GeneralizedPolynomialChaos::getPointsAndWeights(std::vector<std::vector<double>>& points, std::vector<std::vector<double>>& weights) {
     points = this->points;

@@ -10,6 +10,13 @@
 #include <sstream>
 #include <unordered_map>
 #include <iostream>
+#include <cmath>
+#include <stdexcept>
+#include <vector>
+#include <memory>
+#include <algorithm>
+#include <numeric> // for std::inner_product
+
 
 // Utility function to check if a directory exists
 bool directoryExists(const std::string& path);

@@ -10,18 +10,14 @@
 #include "utils.h"
 
 // Include the polynomial basis and quadrature headers
-#include "legendre_basis.h"
-#include "hermite_basis.h"
-#include "quadrature.h"
+#include "polynomial.h"
+// #include "quadrature.h"
 
 class GeneralizedPolynomialChaos {
-public:
-    // Constructor
+public:    // Constructor
     GeneralizedPolynomialChaos(int order,
                                int nq,
-                               const std::vector<double>& parameter1,
-                               const std::vector<double>& parameter2,
-                               const std::vector<int>& polynomialTypes,
+                               const std::vector<std::shared_ptr<Polynomials::PolynomialBasis>>& polynomialBases,
                                Quadrature::QuadratureMethod quadratureMethod);
 
     // Evaluation functions
@@ -54,8 +50,6 @@ public:
     // Getters
     int getPolynomialsOrder() const;
     int getQuadraturePointsNumber() const;
-    double getParameter1(int i) const;
-    double getParameter2(int i) const;
     void getPointsAndWeights(std::vector<std::vector<double>>& points, std::vector<std::vector<double>>& weights);
     void getTensors(std::vector<double>& t2Product, std::vector<double>& t2Product_inv, std::vector<double>& t3Product);
     std::vector<double> getWeightsMultiplied() const;
@@ -80,9 +74,6 @@ private:
     int totalNq; // Total number of quadrature points
     int order;
     int randomNumberDimension;
-    std::vector<int> polynomialTypes;
-    std::vector<double> parameter1;
-    std::vector<double> parameter2;
     std::vector<std::vector<int>> inds; // Multi-indices
     std::vector<std::vector<double>> points;  // Points for each dimension
     std::vector<std::vector<double>> weights; // Weights for each dimension
@@ -98,12 +89,10 @@ private:
     std::vector<double> t2Product_inv;
     std::vector<double> t3Product;
 
-    // Polynomial bases and quadratures for each dimension
-    std::vector<std::shared_ptr<void>> polynomialBases;
-    std::vector<std::shared_ptr<void>> quadratures;
+    // Polynomial bases for each dimension
+    std::vector<std::shared_ptr<Polynomials::PolynomialBasis>> polynomialBases;
 
     // Initialization functions
-    void initializePolynomialBases();
     void initializeQuadratures();
     void initializeMatrices();
 

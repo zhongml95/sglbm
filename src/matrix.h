@@ -2,12 +2,7 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-#include <iostream>
-#include <cmath>
-#include <vector>
-#include <iomanip>
-#include <algorithm>
-#include <numeric> // for std::inner_product
+#include "utils.h"
 
 
 

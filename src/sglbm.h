@@ -43,7 +43,8 @@ public:
   int total_nq;
   std::vector<int> polynomial_types;
   std::vector<double> parameter1;
-  std::vector<double> parameter2;
+  std::vector<double> parameter2;  
+  std::vector<std::shared_ptr<Polynomials::PolynomialBasis>> polynomialBases;
 
   double cs2 = 1.0 / 3.0;
   std::vector<int> cx = { 0, 1, 0, -1, 0, 1, -1, -1, 1 };
@@ -82,8 +83,8 @@ public:
   std::vector<std::vector<std::vector<std::vector<double>>>> feq;
 
 
-  sglbm(std::string _dir, const Parameters& params, Quadrature::QuadratureMethod quadratureMethod)
-        : ops(params.order, params.nq, params.parameter1, params.parameter2, params.polynomialType, quadratureMethod) 
+  sglbm(std::string _dir, const Parameters& params, const std::vector<std::shared_ptr<Polynomials::PolynomialBasis>> _polynomialBases, Quadrature::QuadratureMethod quadratureMethod)
+        : ops(params.order, params.nq, _polynomialBases, quadratureMethod) 
   {
     dir = _dir;
     No = ops.getPolynomialsOrder();
@@ -92,6 +93,8 @@ public:
     polynomial_types = params.polynomialType;
     parameter1 = params.parameter1;
     parameter2 = params.parameter2;
+
+    polynomialBases = _polynomialBases;
   
   }
 
@@ -603,12 +606,12 @@ public:
       }
     }
 
-  double get_parameter1() {
-    return parameter1[0];
+  double getParameter1(int index) {
+    return parameter1[index];
   }
 
-  double get_parameter2() {
-    return parameter2[0];
+  double getParameter2(int index) {
+    return parameter2[index];
   }
 
   int get_polynomials_order() {

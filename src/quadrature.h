@@ -2,12 +2,9 @@
 #ifndef QUADRATURE_H
 #define QUADRATURE_H
 
-#include <vector>
-#include <cmath>
-#include <algorithm>
-#include <numeric>
-#include <memory>
-#include <stdexcept>
+#include "utils.h"
+#include "quadrature_base.h"
+#include "polynomial.h"
 
 // Uncomment the following line if you have GSL installed and want to use it
 // #define USE_GSL
@@ -18,24 +15,19 @@
 
 namespace Quadrature {
 
-enum class QuadratureMethod {
-    HouseholderQR,
-    GSL
-};
-
 template <typename PolynomialBasis>
-class Quadrature {
+class Quadrature : public QuadratureBase {
 public:
     Quadrature(int order, QuadratureMethod method = QuadratureMethod::HouseholderQR)
         : order(order), basis(std::make_shared<PolynomialBasis>()), method(method) {
         computeQuadrature();
     }
 
-    const std::vector<double>& getPoints() const {
+    const std::vector<double>& getPoints() const override {
         return points;
     }
 
-    const std::vector<double>& getWeights() const {
+    const std::vector<double>& getWeights() const override {
         return weights;
     }
 
@@ -71,7 +63,7 @@ void computeQuadrature() {
 #ifdef USE_GSL
     void computeQuadratureGSL() {
         // Check if PolynomialBasis supports GSL
-        if constexpr (std::is_same_v<PolynomialBasis, Polynomials::Legendre::LegendreBasis>) {
+        if constexpr (std::is_same_v<PolynomialBasis, Polynomials::LegendreBasis>) {
             computeQuadraturePointsWeightsGSL(order, points, weights);
 
             // Normalize weights if necessary
@@ -99,6 +91,7 @@ void computeQuadrature() {
             gsl_integration_glfixed_point(-1.0, 1.0, i, &xi, &wi, table);
             points[i] = xi;
             weights[i] = wi * 0.5; // Adjust weights if necessary
+            // std::cout << "Point: " << points[i] << ", Weight: " << weights[i] << std::endl;
         }
 
         gsl_integration_glfixed_table_free(table);
@@ -148,13 +141,13 @@ void computeQuadrature() {
     }
 
     // Specialization for LegendreBasis
-    double computeQuadratureWeight(const Polynomials::Legendre::LegendreBasis& basis, int n, double x) {
+    double computeQuadratureWeight(const Polynomials::LegendreBasis& basis, int n, double x) {
         double Pn_prime = basis.derivativePolynomial(n - 1, x);
         return 2.0 / ((1.0 - x * x) * Pn_prime * Pn_prime);
     }
 
     // Specialization for HermiteBasis
-    double computeQuadratureWeight(const Polynomials::Hermite::HermiteBasis& basis, int n, double x) {
+    double computeQuadratureWeight(const Polynomials::HermiteBasis& basis, int n, double x) {
         double Hn_minus1 = basis.evaluatePolynomial(n - 1, x);
         return std::exp(-x * x) / (Hn_minus1 * Hn_minus1);
     }

@@ -7,15 +7,16 @@ int main() {
     // Set parameters
     int order = 4; // Polynomial order
     int nq = 8;    // Number of quadrature points
-    std::vector<double> parameters1(1, -1.0);  // Parameter1 for polynomials
-    std::vector<double> parameters2(1,  1.0);  // Parameter2 for polynomials
-    std::vector<int> parameterType(1, 0);      // Polynomial type (0 = Legendre, 1 = Hermite, etc.)
 
     // Choose the quadrature method
-    Quadrature::QuadratureMethod points_weights_method = Quadrature::QuadratureMethod::GSL;
+    Quadrature::QuadratureMethod quadratureMethod = Quadrature::QuadratureMethod::GSL;
+
+    // Initialize polynomial bases
+    std::vector<std::shared_ptr<Polynomials::PolynomialBasis>> polynomialBases;
+    polynomialBases.push_back(std::make_shared<Polynomials::LegendreBasis>());
 
     // Create GeneralizedPolynomialChaos object
-    GeneralizedPolynomialChaos ops(order, nq, parameters1, parameters2, parameterType, points_weights_method);
+    GeneralizedPolynomialChaos ops(order, nq, polynomialBases, quadratureMethod);
 
     // // Get points and weights
     std::vector<std::vector<double>> points, weights;

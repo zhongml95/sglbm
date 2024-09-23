@@ -6,7 +6,7 @@
 // #define stochastic_viscosity
 #define stochastic_velocity
 
-using LegendreBasis = Polynomials::Legendre::LegendreBasis;
+using LegendreBasis = Polynomials::LegendreBasis;
 
 double calc_tke_error(sglbm sglbm, int count) {
   
@@ -98,8 +98,8 @@ void initialize(sglbm& sglbm) {
 
       // For the 0th polynomial basis
       std::vector<double> perturbation_chaos_0(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.ops.getParameter1(0) * std::sin(2*x) * std::sin(2*y),
-                                  sglbm.ops.getParameter2(0) * std::sin(2*x) * std::sin(2*y),
+      sglbm.ops.convert2affinePCE(sglbm.getParameter1(0) * std::sin(2*x) * std::sin(2*y),
+                                  sglbm.getParameter2(0) * std::sin(2*x) * std::sin(2*y),
                                   0,
                                   perturbation_chaos_0);
       sglbm.u[i][j][1] -= sglbm.u0 * 0.25 * perturbation_chaos_0[1] * std::cos(x) * std::sin(y);
@@ -107,8 +107,8 @@ void initialize(sglbm& sglbm) {
 
       // For the 1st polynomial basis
       std::vector<double> perturbation_chaos_1(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.ops.getParameter1(1) * std::sin(2*x) * std::cos(2*y),
-                                    sglbm.ops.getParameter2(1) * std::sin(2*x) * std::cos(2*y),
+      sglbm.ops.convert2affinePCE(sglbm.getParameter1(1) * std::sin(2*x) * std::cos(2*y),
+                                    sglbm.getParameter2(1) * std::sin(2*x) * std::cos(2*y),
                                     0,
                                     perturbation_chaos_1);
       sglbm.u[i][j][2] -= sglbm.u0 * 0.25 * perturbation_chaos_1[1] * std::cos(x) * std::sin(y);
@@ -116,8 +116,8 @@ void initialize(sglbm& sglbm) {
 
       // For the 2nd polynomial basis
       std::vector<double> perturbation_chaos_2(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.ops.getParameter1(2) * std::cos(2*x) * std::sin(2*y),
-                                    sglbm.ops.getParameter2(2) * std::cos(2*x) * std::sin(2*y),
+      sglbm.ops.convert2affinePCE(sglbm.getParameter1(2) * std::cos(2*x) * std::sin(2*y),
+                                    sglbm.getParameter2(2) * std::cos(2*x) * std::sin(2*y),
                                     0,
                                     perturbation_chaos_2);
       sglbm.u[i][j][3] -= sglbm.u0 * 0.25 * perturbation_chaos_2[1] * std::cos(x) * std::sin(y);
@@ -125,8 +125,8 @@ void initialize(sglbm& sglbm) {
 
       // For the 3rd polynomial basis
       std::vector<double> perturbation_chaos_3(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.ops.getParameter1(3) * std::cos(2*x) * std::cos(2*y),
-                                    sglbm.ops.getParameter2(3) * std::cos(2*x) * std::cos(2*y),
+      sglbm.ops.convert2affinePCE(sglbm.getParameter1(3) * std::cos(2*x) * std::cos(2*y),
+                                    sglbm.getParameter2(3) * std::cos(2*x) * std::cos(2*y),
                                     0,
                                     perturbation_chaos_3);
       sglbm.u[i][j][4] -= sglbm.u0 * 0.25 * perturbation_chaos_3[1] * std::cos(x) * std::sin(y);
@@ -171,8 +171,11 @@ int main( int argc, char* argv[] )
 
   // Choose the quadrature method
   Quadrature::QuadratureMethod points_weights_method = Quadrature::QuadratureMethod::GSL;
+  // Initialize polynomial bases
+  std::vector<std::shared_ptr<Polynomials::PolynomialBasis>> polynomialBases;
+  polynomialBases.push_back(std::make_shared<Polynomials::LegendreBasis>());
 
-  sglbm sglbm(dir, params, points_weights_method);
+  sglbm sglbm(dir, params, polynomialBases, points_weights_method);
   sglbm.UnitConverterFromResolutionAndRelaxationTime(params);
 
   setGeometry(sglbm, params);
