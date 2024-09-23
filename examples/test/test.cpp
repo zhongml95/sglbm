@@ -6,10 +6,10 @@
 int main() {
     // Set parameters
     int order = 4; // Polynomial order
-    int nq = 8;    // Number of quadrature points
+    int nq = 20;    // Number of quadrature points
 
     // Choose the quadrature method
-    Quadrature::QuadratureMethod quadratureMethod = Quadrature::QuadratureMethod::GSL;
+    Quadrature::QuadratureMethod quadratureMethod = Quadrature::QuadratureMethod::HouseholderQR;
 
     // Initialize polynomial bases
     std::vector<std::shared_ptr<Polynomials::PolynomialBasis>> polynomialBases;
