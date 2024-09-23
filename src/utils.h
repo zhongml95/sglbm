@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <numeric> // for std::inner_product
 
+#include "matrix.h"
+
 
 // Utility function to check if a directory exists
 bool directoryExists(const std::string& path);

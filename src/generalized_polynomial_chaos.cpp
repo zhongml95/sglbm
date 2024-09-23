@@ -16,50 +16,6 @@ using LegendreBasis = Polynomials::LegendreBasis;
 using HermiteBasis = Polynomials::HermiteBasis;
 // using Quadrature = Quadrature::Quadrature;
 
-// Helper functions for file I/O and directory management
-// namespace {
-//     bool directoryExists(const std::string& directory) {
-//         struct stat info;
-//         if (stat(directory.c_str(), &info) != 0)
-//             return false;
-//         else if (info.st_mode & S_IFDIR)
-//             return true;
-//         else
-//             return false;
-//     }
-
-//     void createDirectory(const std::string& directory) {
-//         mkdir(directory.c_str(), 0777);
-//     }
-
-//     bool fileExists(const std::string& filename) {
-//         std::ifstream infile(filename);
-//         return infile.good();
-//     }
-
-//     void readVector1D(const std::string& filename, std::vector<double>& data) {
-//         std::ifstream infile(filename, std::ios::binary);
-//         if (!infile) {
-//             throw std::runtime_error("Failed to open file for reading: " + filename);
-//         }
-//         size_t size = 0;
-//         infile.read(reinterpret_cast<char*>(&size), sizeof(size));
-//         data.resize(size);
-//         infile.read(reinterpret_cast<char*>(data.data()), size * sizeof(double));
-//         infile.close();
-//     }
-
-//     void saveVector1D(const std::string& filename, const std::vector<double>& data) {
-//         std::ofstream outfile(filename, std::ios::binary);
-//         if (!outfile) {
-//             throw std::runtime_error("Failed to open file for writing: " + filename);
-//         }
-//         size_t size = data.size();
-//         outfile.write(reinterpret_cast<const char*>(&size), sizeof(size));
-//         outfile.write(reinterpret_cast<const char*>(data.data()), size * sizeof(double));
-//         outfile.close();
-//     }
-// }
 
 // Constructor
 GeneralizedPolynomialChaos::GeneralizedPolynomialChaos(int _order,
@@ -109,7 +65,7 @@ void GeneralizedPolynomialChaos::initializeQuadratures() {
 
 // Initialize matrices
 void GeneralizedPolynomialChaos::initializeMatrices() {
-    // std::cout << "Initializing matrices..." << std::endl;
+    std::cout << "Initializing matrices..." << std::endl;
     // Resize vectors
     phiRan.resize(totalNq * No, 0.0);
     phiRan_T.resize(totalNq * No, 0.0);
@@ -136,6 +92,7 @@ void GeneralizedPolynomialChaos::initializeMatrices() {
 
 // Initialize polynomial coefficients
 void GeneralizedPolynomialChaos::initializePolynomialCoefficients() {
+    std::cout << "Initializing polynomial coefficients..." << std::endl;
     coefficients.resize(randomNumberDimension);
     for (int phi_i = 0; phi_i < randomNumberDimension; ++phi_i) {
         auto basis = std::static_pointer_cast<LegendreBasis>(polynomialBases[phi_i]);
@@ -204,6 +161,7 @@ void GeneralizedPolynomialChaos::evaluatePhiRan() {
 
 // Helper functions
 void GeneralizedPolynomialChaos::calculateMultiIndices(int d, int n, std::vector<std::vector<int>>& indices) {
+    
     std::vector<int> index(d, 0);
 
     std::function<void(int, int, int)> recursiveFunction = [&](int pos, int sum, int maxOrder) {

@@ -104,7 +104,26 @@ void computeQuadrature() {
 
         // Step 2: Compute eigenvalues (quadrature points) using Householder method
         std::vector<std::vector<double>> R;
+
         computeEigenvalues(J, R);
+
+        // print J and R after operation:
+        // std::cout << "J matrix:\n";
+        // for (size_t i = 0; i < J.size(); ++i) {
+        //     for (size_t j = 0; j < J[i].size(); ++j) {
+        //         std::cout << J[i][j] << " ";
+        //     }
+        //     std::cout << std::endl;
+        // }
+
+        // std::cout << "R matrix:\n";
+        // for (size_t i = 0; i < R.size(); ++i) {
+        //     for (size_t j = 0; j < R[i].size(); ++j) {
+        //         std::cout << R[i][j] << " ";
+        //     }
+        //     std::cout << std::endl;
+        // }
+
 
         // Extract eigenvalues (diagonal elements of R)
         points.resize(order);
@@ -156,104 +175,112 @@ void computeQuadrature() {
     void computeEigenvalues(std::vector<std::vector<double>>& J, std::vector<std::vector<double>>& R) {
         int n = J.size();
         std::vector<std::vector<double>> Q(n, std::vector<double>(n, 0.0));
-        std::vector<std::vector<double>> J_new = J;
-        int iter = 0;
+        std::vector<std::vector<double>> J_new = copyMatrix(J);
+        int iter = 1;
         int max_iter = 1000;
         double tol = 1e-12;
 
         while (iter < max_iter) {
-            householderQR(J_new, Q, R);
+            householderQR(J, Q, R);
             J_new = matrixMultiplication(R, Q);
 
-            if (iter % 10 == 0 && isConverged(J, J_new, tol)) {
-                break;
+            if (iter % 100 == 0) {
+                if (isConverged(J, J_new, tol)) {
+                    std::cout << "Householder QR converged in " << iter << " iterations. Tol is " << tol << std::endl;
+                    break;
+                }
+                
+                std::cout << "Householder QR in " << iter << " iterations. Tol is " << tol << std::endl;
             }
 
-            J = J_new;
+            J.swap(J_new);
             iter++;
         }
     }
 
-    void householderQR(const std::vector<std::vector<double>>& A,
-                       std::vector<std::vector<double>>& Q,
-                       std::vector<std::vector<double>>& R) {
-        int m = A.size();
-        int n = A[0].size();
-        R = A;
-        Q = generateIdentityMatrix(m);
+    // void householderQR(const std::vector<std::vector<double>>& A,
+    //                    std::vector<std::vector<double>>& Q,
+    //                    std::vector<std::vector<double>>& R) {
+    //     int m = A.size();
+    //     int n = A[0].size();
+    //     R = A;
+    //     Q = generateIdentityMatrix(m);
 
-        for (int k = 0; k < n; ++k) {
-            std::vector<double> x(m - k);
-            for (int i = k; i < m; ++i) {
-                x[i - k] = R[i][k];
-            }
+    //     for (int k = 0; k < n; ++k) {
+    //         std::vector<double> x(m - k);
+    //         for (int i = k; i < m; ++i) {
+    //             x[i - k] = R[i][k];
+    //         }
 
-            double norm_x = vectorNorm(x);
-            double sign = (x[0] >= 0) ? 1.0 : -1.0;
-            double u1 = x[0] + sign * norm_x;
-            std::vector<double> v = x;
-            v[0] = u1;
+    //         double norm_x = vectorNorm(x);
+    //         double sign = (x[0] >= 0) ? 1.0 : -1.0;
+    //         double u1 = x[0] + sign * norm_x;
+    //         std::vector<double> v = x;
+    //         v[0] = u1;
 
-            double s = vectorNorm(v);
-            if (s != 0.0) {
-                for (auto& vi : v) {
-                    vi /= s;
-                }
-            }
+    //         double s = vectorNorm(v);
+    //         if (s != 0.0) {
+    //             for (auto& vi : v) {
+    //                 vi /= s;
+    //             }
+    //         }
 
-            std::vector<std::vector<double>> H = generateIdentityMatrix(m);
-            for (int i = k; i < m; ++i) {
-                for (int j = k; j < m; ++j) {
-                    H[i][j] -= 2.0 * v[i - k] * v[j - k];
-                }
-            }
+    //         std::vector<std::vector<double>> H = generateIdentityMatrix(m);
+    //         for (int i = k; i < m; ++i) {
+    //             for (int j = k; j < m; ++j) {
+    //                 H[i][j] -= 2.0 * v[i - k] * v[j - k];
+    //             }
+    //         }
 
-            R = matrixMultiplication(H, R);
-            Q = matrixMultiplication(Q, H);
-        }
-    }
+    //         R = matrixMultiplication(H, R);
+    //         Q = matrixMultiplication(Q, H);
+    //     }
+    // }
 
-    double vectorNorm(const std::vector<double>& v) {
-        double sum = 0.0;
-        for (double vi : v) {
-            sum += vi * vi;
-        }
-        return std::sqrt(sum);
-    }
+    // double vectorNorm(const std::vector<double>& v) {
+    //     double sum = 0.0;
+    //     for (double vi : v) {
+    //         sum += vi * vi;
+    //     }
+    //     return std::sqrt(sum);
+    // }
 
-    std::vector<std::vector<double>> generateIdentityMatrix(int n) {
-        std::vector<std::vector<double>> I(n, std::vector<double>(n, 0.0));
-        for (int i = 0; i < n; ++i) {
-            I[i][i] = 1.0;
-        }
-        return I;
-    }
+    // std::vector<std::vector<double>> generateIdentityMatrix(int n) {
+    //     std::vector<std::vector<double>> I(n, std::vector<double>(n, 0.0));
+    //     for (int i = 0; i < n; ++i) {
+    //         I[i][i] = 1.0;
+    //     }
+    //     return I;
+    // }
 
-    std::vector<std::vector<double>> matrixMultiplication(const std::vector<std::vector<double>>& A,
-                                                          const std::vector<std::vector<double>>& B) {
-        int m = A.size();
-        int n = B[0].size();
-        int p = A[0].size();
-        std::vector<std::vector<double>> C(m, std::vector<double>(n, 0.0));
+    // std::vector<std::vector<double>> matrixMultiplication(const std::vector<std::vector<double>>& A,
+    //                                                       const std::vector<std::vector<double>>& B) {
+    //     int m = A.size();
+    //     int n = B[0].size();
+    //     int p = A[0].size();
+    //     std::vector<std::vector<double>> C(m, std::vector<double>(n, 0.0));
 
-        for (int i = 0; i < m; ++i) {
-            for (int j = 0; j < n; ++j) {
-                double sum = 0.0;
-                for (int k = 0; k < p; ++k) {
-                    sum += A[i][k] * B[k][j];
-                }
-                C[i][j] = sum;
-            }
-        }
-        return C;
-    }
+    //     for (int i = 0; i < m; ++i) {
+    //         for (int j = 0; j < n; ++j) {
+    //             double sum = 0.0;
+    //             for (int k = 0; k < p; ++k) {
+    //                 sum += A[i][k] * B[k][j];
+    //             }
+    //             C[i][j] = sum;
+    //         }
+    //     }
+    //     return C;
+    // }
 
     bool isConverged(const std::vector<std::vector<double>>& A, const std::vector<std::vector<double>>& B, double tol) {
         int n = A.size();
         double norm_diff = 0.0;
         for (int i = 0; i < n; ++i) {
-            norm_diff += std::abs(A[i][i] - B[i][i]);
+            for (int j = 0; j < n; ++j) {
+                norm_diff += std::abs(A[i][j] - B[i][j]);
+            }
         }
+        std::cout << "Norm diff: " << norm_diff << std::endl;
         return norm_diff < tol;
     }
 };
