@@ -1,46 +1,61 @@
-# Compiler settings
-CXX = g++
-CXXFLAGS = -O3 -fopenmp -DUSE_GSL  # Add -DUSE_GSL here for global definition
-INCLUDES = -I/home/zhongml95/gsl/include
-LDFLAGS = -L/home/zhongml95/gsl/lib
-LIBS = -lgsl -lgslcblas  # Link against GSL libraries
+# ────────────────────────────────────────────────────────────────────────────
+#  Build settings
+# ────────────────────────────────────────────────────────────────────────────
+CXX      ?= g++
+STD        = -std=c++20
 
-# Target executable
-TARGET = tgv2d
+# Speed‑oriented flags (tune as needed)
+OPTFLAGS  = -O3 -march=native -ffast-math -flto
+OMPFLAG   = -fopenmp                           # remove if you don't use OpenMP
+WARNFLAGS = -Wall -Wextra -Wpedantic
 
-# Source directory
-SRC_DIR = ../../src
+CXXFLAGS += $(STD) $(OPTFLAGS) $(OMPFLAG) $(WARNFLAGS) -MMD -MP
+LDFLAGS  += $(OMPFLAG)    # link with OpenMP runtime
 
-# Build directory for object files
-BUILD_DIR = build
+# Headers that live in ../../src
+INCLUDES  = -I../../src
+# Extra libs (e.g. -lm, -lfftw3) can go here
+LIBS      =
 
-# Source files
-SOURCES = tgv2d.cpp $(wildcard $(SRC_DIR)/*.cpp)
+# ────────────────────────────────────────────────────────────────────────────
+#  File lists
+# ────────────────────────────────────────────────────────────────────────────
+SRC_DIR   := ../../src
+BUILD_DIR := build
+TARGET    := tgv2d
 
-# Object files will be placed in the build directory
-OBJECTS = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(notdir $(SOURCES)))
+# Driver plus every *.cpp inside SRC_DIR
+SOURCES   := tgv2d.cpp $(wildcard $(SRC_DIR)/*.cpp)
 
-# Include directories
-VPATH = $(SRC_DIR)
+# Map each source file to an object file under BUILD_DIR mirroring the path
+OBJECTS   := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SOURCES))
+DEPS      := $(OBJECTS:.o=.d)
 
-# Default target
-all: $(BUILD_DIR) $(TARGET)
+# ────────────────────────────────────────────────────────────────────────────
+#  Default target
+# ────────────────────────────────────────────────────────────────────────────
+all: $(TARGET)
 
-# Create the build directory
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
-
-# Linking the target executable
+# ────────────────────────────────────────────────────────────────────────────
+#  Link the final executable
+# ────────────────────────────────────────────────────────────────────────────
 $(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS)
 
-# Compiling source files, placing the output in the build directory
+# ────────────────────────────────────────────────────────────────────────────
+#  Compile every .cpp –> build/…/.o (auto‑create sub‑dirs)
+# ────────────────────────────────────────────────────────────────────────────
 $(BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# Cleaning up
+# ────────────────────────────────────────────────────────────────────────────
+#  House‑keeping
+# ────────────────────────────────────────────────────────────────────────────
 clean:
-	rm -rf $(TARGET) $(BUILD_DIR)
+	$(RM) -r $(BUILD_DIR) $(TARGET)
 
-# Phony targets
+# If any dependency file is missing just ignore the error
+-include $(DEPS)
+
 .PHONY: all clean

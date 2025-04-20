@@ -4,20 +4,30 @@
 
 #include "utils.h"
 
+
+// namespace olb {
+
+// namespace uq {
+
 namespace Quadrature {
 
 enum class QuadratureMethod {
     HouseholderQR,
-    GSL
+    WilkinsonShiftQR
 };
 
+template<typename T>
 class QuadratureBase {
 public:
     virtual ~QuadratureBase() = default;
-    virtual const std::vector<double>& getPoints() const = 0;
-    virtual const std::vector<double>& getWeights() const = 0;
+    virtual const std::vector<T>& getPoints() const = 0;
+    virtual const std::vector<T>& getWeights() const = 0;
 };
 
 } // namespace Quadrature
+
+// } // namespace uq
+
+// } // namespace olb
 
 #endif // QUADRATURE_BASE_H

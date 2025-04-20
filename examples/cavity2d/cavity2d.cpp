@@ -1,21 +1,24 @@
 #include "../../src/sglbm.h"
 #include "../../src/postprocessing_sglbm.h"
 
-double calcError(sglbm sglbm, double&uNorm0) {
-  double error = 0.0;
-  double uNorm1 = 0.0;
+using T = double;
+
+template<typename T>
+T calcError(const sglbm<T>& sglbm, T&uNorm0) {
+  T error = 0.0;
+  T uNorm1 = 0.0;
   for (int i = 0; i < sglbm.nx; ++i){
     for (int j = 0; j < sglbm.ny; j++){
-      std::vector<double> uSlice(sglbm.ops.order+1, 0.0);
-      std::vector<double> vSlice(sglbm.ops.order+1, 0.0);
-      for (int alpha = 0; alpha < sglbm.ops.order+1; ++alpha){
+      std::vector<T> uSlice(sglbm.ops->getPolynomialsOrder(), 0.0);
+      std::vector<T> vSlice(sglbm.ops->getPolynomialsOrder(), 0.0);
+      for (int alpha = 0; alpha < sglbm.ops->getPolynomialsOrder(); ++alpha){
         uSlice[alpha] = sglbm.u[i][j][alpha];
         vSlice[alpha] = sglbm.v[i][j][alpha];
       }
-      double uMean = 0.0;
-      double vMean = 0.0;
-      uMean = sglbm.ops.mean(uSlice);
-      vMean = sglbm.ops.mean(vSlice);
+      T uMean = 0.0;
+      T vMean = 0.0;
+      uMean = sglbm.ops->mean(uSlice);
+      vMean = sglbm.ops->mean(vSlice);
       uNorm1 += (uMean * uMean + vMean * vMean);
     }
   }
@@ -26,7 +29,7 @@ double calcError(sglbm sglbm, double&uNorm0) {
   return error;
 }
 
-void setGeometry(sglbm& sglbm, Parameters params) {
+void setGeometry(sglbm<T>& sglbm, Parameters params) {
   std::cout << "start setting geometry" << std::endl;
 
   sglbm.nx = sglbm.N + 1;
@@ -50,19 +53,20 @@ void setGeometry(sglbm& sglbm, Parameters params) {
     
 }
 
-void initialize(sglbm& sglbm) {
+template<typename T>
+void initialize(sglbm<T>& sglbm) {
 
   sglbm.prepareLattice();
 
-  std::vector<double> omegaChaos(sglbm.ops.No+1, 0.0);
+  std::vector<T> omegaChaos(sglbm.ops->getPolynomialsOrder(), 0.0);
   omegaChaos[0] = sglbm.omega0;
   sglbm.omegaChaos = omegaChaos;
 
   for (int i = 0; i < sglbm.nx; ++i) {
     for (int j = 0; j < sglbm.ny; ++j) {
-      std::vector<double> uChaos(sglbm.ops.No+1, 0.0);
-      std::vector<double> vChaos(sglbm.ops.No+1, 0.0);
-      std::vector<double> rChaos(sglbm.ops.No+1, 0.0);
+      std::vector<T> uChaos(sglbm.ops->getPolynomialsOrder(), 0.0);
+      std::vector<T> vChaos(sglbm.ops->getPolynomialsOrder(), 0.0);
+      std::vector<T> rChaos(sglbm.ops->getPolynomialsOrder(), 0.0);
 
       rChaos[0] = 1.0;
       sglbm.rho[i][j] = rChaos;
@@ -76,16 +80,17 @@ void initialize(sglbm& sglbm) {
   std::cout << "finish initializing" << std::endl;
 }
 
-void setBoundaryValue(sglbm& sglbm) {
+void setBoundaryValue(sglbm<T>& sglbm) {
 
-  std::vector<double> chaos(2,0.0);
-  sglbm.ops.convert2affinePCE(sglbm.ops.parameter1[0]*sglbm.u0, sglbm.ops.parameter2[0]*sglbm.u0, sglbm.ops.polynomial_types[0],chaos);
+  std::vector<T> chaos(2,0.0);
+  auto dist = sglbm.ops->getDistributions();
+  sglbm.ops->convert2affinePCE(dist[0], chaos);
 
   for (int i = 0; i < sglbm.nx; ++i) {
     for (int j = 0; j < sglbm.ny; ++j) {
       if (sglbm.material[i][j] == 3) {
         sglbm.u[i][j][0] = chaos[0];
-        sglbm.v[i][j][0] = chaos[1];
+        sglbm.u[i][j][1] = chaos[1];
       }
     }
   }
@@ -113,8 +118,11 @@ int main( int argc, char* argv[] )
     std::cout << dir << std::endl;
     std::cout << "finish mkdir" << std::endl;
 
+    UncertaintyQuantification<T> uq(UQMethod::GPC);
+    auto dist = uniform(params.parameter1[0], params.parameter2[0]);
+    uq.initializeGPC(params.order, params.nq, dist);
     
-    sglbm sglbm(dir, params);
+    sglbm<T> sglbm(dir, params, uq);
     sglbm.UnitConverterFromResolutionAndRelaxationTime(params);
 
     setGeometry(sglbm, params);
@@ -127,11 +135,11 @@ int main( int argc, char* argv[] )
     std::cout << "start iteration" << std::endl;
     int count = 1;
     //std::clock_t c_start = std::clock();
-    double start = omp_get_wtime();
+    T start = omp_get_wtime();
     //std::clock_t c_end = std::clock();
-    double end = omp_get_wtime();
+    T end = omp_get_wtime();
 
-    double t = 0.0, t0, t1;
+    T t = 0.0, t0, t1;
 
     sglbm.output(dir, 0);
 
@@ -140,8 +148,8 @@ int main( int argc, char* argv[] )
     omp_set_dynamic(0);
     omp_set_num_threads(8);
 
-  double error = 1.0;
-  double uNorm = 1.0;
+  T error = 1.0;
+  T uNorm = 1.0;
 
 
 #pragma omp parallel 
@@ -153,13 +161,13 @@ int main( int argc, char* argv[] )
 #pragma omp single
       {
         count++;
-        if (count % 1000 == 0){
+        if (count % 100 == 0){
           error = calcError(sglbm, uNorm);
           end = omp_get_wtime();
           std::cout << "iter: " << count << " " << "CPI time used: " << end - start << "s" << "\t" << "err: " << error << std::endl;
           start = end;
           t = 0.0;
-          if (count % 10000 == 0) {
+          if (count % 100 == 0) {
             sglbm.output(dir, count);
           }
         }

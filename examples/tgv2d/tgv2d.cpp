@@ -1,244 +1,248 @@
+// -----------------------------------------------------------------------------
+// Taylor–Green vortex 2‑D driver (updated for the refactored sglbm)
+// -----------------------------------------------------------------------------
+//   * Works with the flattened SoA layout inside sglbm
+//   * Uses the new convenience accessors   u_at(i,j) / v_at(i,j) / rho_at(i,j)
+//   * No per‑node heap allocations in the main loop
+//   * Cleaned‑up "auto dist" shadowing and minor compilation warnings
+// -----------------------------------------------------------------------------
+
 #include <cmath>
+#include <cstdlib>
+#include <iostream>
+#include <omp.h>
+#include <filesystem>
+
+
 #include "../../src/sglbm.h"
 #include "../../src/postprocessing_sglbm.h"
 
+using T = double;
+
+// -----------------------------------------------------------------------------
+//  Compile‑time switches for the stochastic parameter you want to study
+// -----------------------------------------------------------------------------
 // #define stochastic_Re
-// #define stochastic_viscosity
-#define stochastic_velocity
+#define stochastic_viscosity
+// #define stochastic_velocity
 
-using LegendreBasis = Polynomials::LegendreBasis;
+// -----------------------------------------------------------------------------
+//  Helpers
+// -----------------------------------------------------------------------------
 
-double calc_tke_error(sglbm sglbm, int count) {
-  
-  std::vector<double> tke(sglbm.ops.getPolynomialsOrder(),0.0);
-  double tkeAna = 0.0;
-  totalKineticEnergy(sglbm, tke, tkeAna, count);
-  return std::abs((sglbm.ops.mean(tke)-tkeAna) / tkeAna);
-}
-
-void setGeometry(sglbm& sglbm, Parameters params) {
-  std::cout << "start setting geometry" << std::endl;
-
-  sglbm.nx = sglbm.N;
-  sglbm.ny = sglbm.N;
-
-  sglbm.material = std::vector<std::vector<int>>(sglbm.nx, std::vector<int>(sglbm.ny, 1));
-
-  std::cout << "nx: " << sglbm.nx << ", ny: " << sglbm.ny << std::endl;
-
-  std::cout << "finish setting geometry" << std::endl;
-
-}
-
-void initialize(sglbm& sglbm) {
-
-  sglbm.prepareLattice();
-
-  #if defined(stochastic_Re)  
-    std::vector<double> omegaRan(sglbm.ops.total_nq, 0.0);
-    std::vector<double> ReChaos(sglbm.ops.No, 0.0);
-    std::vector<double> ReRan(sglbm.ops.total_nq, 0.0);
-    std::vector<double> chaos(2, 0.0);
-    sglbm.ops.convert2affinePCE(sglbm.Re * sglbm.ops.parameter1[0], sglbm.Re * sglbm.ops.parameter2[0], sglbm.ops.polynomial_types[0], chaos);
-    ReChaos[0] = chaos[0];
-    ReChaos[1] = chaos[1];
-    sglbm.ops.chaos2ran(ReChaos, ReRan);
-
-    for (int sample = 0; sample < sglbm.ops.total_nq; ++sample) {
-      omegaRan[sample] = 1.0 / ( 3.0 * (sglbm.physVelocity * sglbm.L / ReRan[sample]) / sglbm.conversionViscosity + 0.5 );
-    }  
-    std::vector<double> omegaChaos(sglbm.ops.No, 0.0);
-    sglbm.ops.ran2chaos(omegaRan, omegaChaos);
-    sglbm.omegaChaos = omegaChaos;
-  #elif defined(stochastic_viscosity)  
-    std::vector<double> omegaRan(sglbm.ops.getQuadraturePointsNumber(), 0.0);
-    std::vector<double> physViscosityChaos(sglbm.ops.getPolynomialsOrder(), 0.0);
-    std::vector<double> physViscosityRan(sglbm.ops.getQuadraturePointsNumber(), 0.0);
-    std::vector<double> chaos(2, 0.0);
-
-    sglbm.ops.convert2affinePCE(sglbm.physViscosity * sglbm.ops.getParameter1(0), sglbm.physViscosity * sglbm.ops.getParameter2(0), 0, chaos);
-    physViscosityChaos[0] = chaos[0];
-    physViscosityChaos[1] = chaos[1];
-    sglbm.ops.chaosToRandom(physViscosityChaos, physViscosityRan);
-          
-    for (int sample = 0; sample < sglbm.ops.getQuadraturePointsNumber(); ++sample) {
-      omegaRan[sample] = 1.0 / ( 3.0 * physViscosityRan[sample] / sglbm.conversionViscosity + 0.5 );
-    }
-    std::vector<double> omegaChaos(sglbm.ops.getPolynomialsOrder(), 0.0);
-    sglbm.ops.randomToChaos(omegaRan, omegaChaos);
-    sglbm.omegaChaos = omegaChaos;
-  #elif defined(stochastic_velocity)
-    sglbm.omegaChaos[0] = 1.0 / ( 3.0 * (sglbm.physVelocity * sglbm.L / sglbm.Re) / sglbm.conversionViscosity + 0.5 );
-  #endif
-
-
-  for (int i = 0; i < sglbm.ops.getPolynomialsOrder(); ++i) {
-    std::cout << "omegaChaos[" << i << "]: " << sglbm.omegaChaos[i] << std::endl;
-  }
-
-  for (int i = 0; i < sglbm.nx; ++i) {
-    for (int j = 0; j < sglbm.ny; ++j) {
-      double x = i * sglbm.dx;
-      double y = j * sglbm.dx;
-
-      std::vector<double> uChaos(sglbm.ops.getPolynomialsOrder(), 0.0);
-      std::vector<double> vChaos(sglbm.ops.getPolynomialsOrder(), 0.0);
-      std::vector<double> rChaos(sglbm.ops.getPolynomialsOrder(), 0.0);
-
-      rChaos[0] = 1.0 - 1.5 * sglbm.u0 * sglbm.u0 * std::cos(x + y) * std::cos(x - y);
-      uChaos[0] = -sglbm.u0 * std::cos(x) * std::sin(y);
-      vChaos[0] =  sglbm.u0 * std::sin(x) * std::cos(y);
-
-      sglbm.rho[i][j] = rChaos;
-      sglbm.u[i][j] = uChaos;
-      sglbm.v[i][j] = vChaos;
-
-  #if defined(stochastic_velocity)
-      std::vector<double> perturbation_chaos(sglbm.ops.getPolynomialsOrder(), 0.0);
-
-      // For the 0th polynomial basis
-      std::vector<double> perturbation_chaos_0(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.getParameter1(0) * std::sin(2*x) * std::sin(2*y),
-                                  sglbm.getParameter2(0) * std::sin(2*x) * std::sin(2*y),
-                                  0,
-                                  perturbation_chaos_0);
-      sglbm.u[i][j][1] -= sglbm.u0 * 0.25 * perturbation_chaos_0[1] * std::cos(x) * std::sin(y);
-      sglbm.v[i][j][1] += sglbm.u0 * 0.25 * perturbation_chaos_0[1] * std::sin(x) * std::cos(y);
-
-      // For the 1st polynomial basis
-      std::vector<double> perturbation_chaos_1(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.getParameter1(1) * std::sin(2*x) * std::cos(2*y),
-                                    sglbm.getParameter2(1) * std::sin(2*x) * std::cos(2*y),
-                                    0,
-                                    perturbation_chaos_1);
-      sglbm.u[i][j][2] -= sglbm.u0 * 0.25 * perturbation_chaos_1[1] * std::cos(x) * std::sin(y);
-      sglbm.v[i][j][2] += sglbm.u0 * 0.25 * perturbation_chaos_1[1] * std::sin(x) * std::cos(y);
-
-      // For the 2nd polynomial basis
-      std::vector<double> perturbation_chaos_2(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.getParameter1(2) * std::cos(2*x) * std::sin(2*y),
-                                    sglbm.getParameter2(2) * std::cos(2*x) * std::sin(2*y),
-                                    0,
-                                    perturbation_chaos_2);
-      sglbm.u[i][j][3] -= sglbm.u0 * 0.25 * perturbation_chaos_2[1] * std::cos(x) * std::sin(y);
-      sglbm.v[i][j][3] += sglbm.u0 * 0.25 * perturbation_chaos_2[1] * std::sin(x) * std::cos(y);
-
-      // For the 3rd polynomial basis
-      std::vector<double> perturbation_chaos_3(sglbm.ops.getPolynomialsOrder(), 0.0);
-      sglbm.ops.convert2affinePCE(sglbm.getParameter1(3) * std::cos(2*x) * std::cos(2*y),
-                                    sglbm.getParameter2(3) * std::cos(2*x) * std::cos(2*y),
-                                    0,
-                                    perturbation_chaos_3);
-      sglbm.u[i][j][4] -= sglbm.u0 * 0.25 * perturbation_chaos_3[1] * std::cos(x) * std::sin(y);
-      sglbm.v[i][j][4] += sglbm.u0 * 0.25 * perturbation_chaos_3[1] * std::sin(x) * std::cos(y);
-
-      std::cout << sglbm.u[i][j][0] << " " << sglbm.u[i][j][1] << " " << sglbm.u[i][j][2] << " " << sglbm.u[i][j][3] << " " << sglbm.u[i][j][4] << std::endl;
-
-  #endif
-
-    }
-  }
-
-  sglbm.initializeDistributionFunction();
-
-  std::cout << "finish initializing" << std::endl;
-}
-
-
-int main( int argc, char* argv[] )
+template<typename T>
+T calc_tke_error(const sglbm<T>& sglbm, int count)
 {
-  Parameters params;
-    
-  // Call readParameters to populate the params instance
-  readParameters("./parameters.dat", params);
-  double physViscosity = params.physVelocity * params.L / params.Re;
-  params.tau = 3 * physViscosity + 0.5;
+    std::vector<T> tke(sglbm.ops->getPolynomialsOrder(), 0.0);
+    T tkeAna = 0.0;
+    totalKineticEnergy(sglbm, tke, tkeAna, count);
+    return std::abs((sglbm.ops->mean(tke) - tkeAna) / tkeAna);
+}
 
-  std::string dir = "./data/tgv/t5/ReNr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/";
-  std::string dirAna = "./data/tgv/t5/ReNr" + std::to_string(params.order) + "Nq" + std::to_string(params.nq) + "N" + std::to_string(params.resolution) + "/final/";
+void setGeometry(sglbm<T>& s)
+{
+    std::cout << "start setting geometry\n";
 
-  std::string command;
-  int a;
-  command = "rm -rf " + dir;
-  a = std::system(command.c_str());    
-  command = "mkdir -p " + dir;
-  a = std::system(command.c_str());
-  command = "mkdir -p " + dirAna;
-  a = std::system(command.c_str());
+    s.nx = s.N;
+    s.ny = s.N;
 
-  std::cout << dir << std::endl;
-  std::cout << "finish mkdir" << std::endl;
+    /* create an nx × ny array filled with 1 (fluid) */
+    s.material.assign(s.nx, std::vector<int>(s.ny, 1));
 
-  // Choose the quadrature method
-  Quadrature::QuadratureMethod points_weights_method = Quadrature::QuadratureMethod::GSL;
-  // Initialize polynomial bases
-  std::vector<std::shared_ptr<Polynomials::PolynomialBasis>> polynomialBases;
-  polynomialBases.push_back(std::make_shared<Polynomials::LegendreBasis>());
-
-  sglbm sglbm(dir, params, polynomialBases, points_weights_method);
-  sglbm.UnitConverterFromResolutionAndRelaxationTime(params);
-
-  setGeometry(sglbm, params);
-
-  initialize(sglbm);
-
-  std::cout << "start iteration" << std::endl;
-  double td = 1.0 / (sglbm.physViscosity * (sglbm.dx * sglbm.dx * 2.0));
-  std::cout << "td: " << td << std::endl;
-  int count = 0;
-  //std::clock_t c_start = std::clock();
-  double start = omp_get_wtime();
-  double start_0 = start;
-  //std::clock_t c_end = std::clock();
-  double end = omp_get_wtime();
-  double err = 0.;
-
-  double t = 0.0, t0, t1;
-
-  sglbm.output(dir, 0);
+    std::cout << "nx: " << s.nx << ", ny: " << s.ny << '\n';
+    std::cout << "finish setting geometry\n";
+}
 
 
-  size_t cores = omp_get_num_procs();
-  omp_set_dynamic(0);
-  omp_set_num_threads(cores);
-  std::cout << "num Threads: " << cores << std::endl;
+// -----------------------------------------------------------------------------
+//  Initial condition
+// -----------------------------------------------------------------------------
 
-  int interval = 100;
-#pragma omp parallel 
-  for (int i = 1; i < int(td * 0.5); ++i) {
-    sglbm.collision();
-    sglbm.streaming();
-    sglbm.reconstruction(); 
+template<typename T>
+void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params)
+{
+    s.prepareLattice();
+
+    std::cout << "polynomial order: " << s.get_polynomials_order() << "\n";
+    std::cout << "quadrature points number: " << s.get_quadrature_points_number() << "\n";
+
+    //--------------------------------------------------------------------------
+    //  Set relaxation parameter omega (possibly stochastic)
+    //--------------------------------------------------------------------------
+    {
+        std::vector<T> omegaRan(s.get_quadrature_points_number());
+        std::vector<T> omegaChaos(s.get_polynomials_order(), 0.0);
+
+    #if defined(stochastic_Re)
+        // Re ~ U[Re*par1, Re*par2]
+        std::vector<T> ReChaos(s.get_polynomials_order(), 0.0);
+        std::vector<T> ReRan(s.get_quadrature_points_number());
+        std::array<T,2> coeff{};
+        auto distRe = uniform(s.Re * params.parameter1[0], s.Re * params.parameter2[0]);
+        s.ops->convert2affinePCE(distRe, coeff);
+        ReChaos[0] = coeff[0];
+        ReChaos[1] = coeff[1];
+        s.ops->chaosToRandom(ReChaos, ReRan);
+        for (int q = 0; q < s.get_quadrature_points_number(); ++q)
+            omegaRan[q] = 1.0 / (3.0 * (s.physVelocity * s.L / ReRan[q]) / s.conversionViscosity + 0.5);
+
+    #elif defined(stochastic_viscosity)
+        // viscosity provided as SC samples from the GPC object
+        auto physViscRan = s.ops->getStochasticCollocationSample(); // returns [nq][?]
+        for (int q = 0; q < s.get_quadrature_points_number(); ++q)
+            omegaRan[q] = 1.0 / (3.0 * physViscRan[q][0] / s.conversionViscosity + 0.5);
+
+    #else   // deterministic omega (default)
+        omegaRan.assign(s.get_quadrature_points_number(),
+                        1.0 / (3.0 * (s.physVelocity * s.L / s.Re) / s.conversionViscosity + 0.5));
+    #endif
+
+        s.ops->randomToChaos(omegaRan, omegaChaos);
+        s.omegaChaos = omegaChaos;
+
+        std::cout << "mean omega: " << s.ops->mean(omegaChaos)
+                  << ", std(omega): " << s.ops->std(omegaChaos) << "\n";
+    }
+
+    //--------------------------------------------------------------------------
+    //  Taylor–Green vortex initial fields
+    //--------------------------------------------------------------------------
+    for (int i = 0; i < s.nx; ++i) {
+        for (int j = 0; j < s.ny; ++j) {
+            const T x = i * s.dx;
+            const T y = j * s.dx;
+
+            std::vector<T> uChaos(s.get_polynomials_order(), 0.0);
+            std::vector<T> vChaos(s.get_polynomials_order(), 0.0);
+            std::vector<T> rChaos(s.get_polynomials_order(), 0.0);
+
+            // deterministic part (0‑th chaos coefficient)
+            rChaos[0] = 1.0 - 1.5 * s.u0 * s.u0 * std::cos(x + y) * std::cos(x - y);
+            uChaos[0] = -s.u0 * std::cos(x) * std::sin(y);
+            vChaos[0] =  s.u0 * std::sin(x) * std::cos(y);
+
+            // store in lattice
+            s.rho_at(i,j) = rChaos;
+            s.u_at(i,j)   = uChaos;
+            s.v_at(i,j)   = vChaos;
+
+        #if defined(stochastic_velocity)
+            // add velocity perturbations on chaos modes 1‑4
+            auto addPerturbation = [&](int mode, T a, T b) {
+                std::array<T,2> coeff{};
+                auto dist = uniform(a,b);
+                s.ops->convert2affinePCE(dist, coeff);
+                s.u_at(i,j)[mode] -= s.u0 * 0.25 * coeff[1] * std::cos(x) * std::sin(y);
+                s.v_at(i,j)[mode] += s.u0 * 0.25 * coeff[1] * std::sin(x) * std::cos(y);
+            };
+
+            addPerturbation(1, params.parameter1[0], params.parameter2[0]);
+            addPerturbation(2, params.parameter1[1], params.parameter2[1]);
+            addPerturbation(3, params.parameter1[2], params.parameter2[2]);
+            addPerturbation(4, params.parameter1[3], params.parameter2[3]);
+        #endif
+        }
+    }
+
+    s.initializeDistributionFunction();
+    std::cout << "finish initializing" << std::endl;
+}
+
+// -----------------------------------------------------------------------------
+//  Main
+// -----------------------------------------------------------------------------
+
+int main([[maybe_unused]] int  argc,
+  [[maybe_unused]] char* argv[])
+{
+    Parameters params;
+    readParameters("./parameters.dat", params);
+
+    // Recompute tau from user‑supplied viscosity / Re
+    const T physViscosity = params.physVelocity * params.L / params.Re;
+    params.tau = 3 * physViscosity + 0.5;
+
+    // data directory ---------------------------------------------------------
+    const std::string dir     = "./data/tgv/t5/ReNr" + std::to_string(params.order) +
+                                "Nq" + std::to_string(params.nq) +
+                                "N"  + std::to_string(params.resolution) + "/";
+    const std::string dirAna  = dir + "final/";
+
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::filesystem::create_directories(dirAna);
+
+    //--------------------------------------------------------------------------
+    //  Uncertainty‑quantification setup (GPC)
+    //--------------------------------------------------------------------------
+    UncertaintyQuantification<T> uq(UQMethod::GPC);
+    auto distVisc = uniform(params.parameter1[0] * physViscosity,
+                            params.parameter2[0] * physViscosity);
+    uq.initializeGPC(params.order, params.nq, distVisc);
+
+    //--------------------------------------------------------------------------
+    //  Build LBM object
+    //--------------------------------------------------------------------------
+    sglbm<T> s(dir, params, uq);
+    s.UnitConverterFromResolutionAndRelaxationTime(params);
+
+    setGeometry(s);
+    initialize(s, params);
+
+    //--------------------------------------------------------------------------
+    //  Time stepping
+    //--------------------------------------------------------------------------
+    const T td = 1.0 / (s.physViscosity * (s.dx * s.dx * 2.0));
+    const int maxIter = static_cast<int>(td * 0.5);
+    const int outputInterval = 100;
+
+    size_t cores = omp_get_num_procs();
+    omp_set_dynamic(0);
+    omp_set_num_threads(static_cast<int>(cores));
+    std::cout << "num Threads: " << cores << std::endl;
+
+    s.output(dir, 0);
+
+    double tStart = omp_get_wtime();
+    double tCheckpoint = tStart;
+    int    iterOut = 0;
+
+#pragma omp parallel
+    for (int iter = 1; iter <= maxIter; ++iter) {
+        s.collision();
+        s.streaming();
+        s.reconstruction();
 
 #pragma omp single
-    {
-      if (i % interval == 0) {
-        end = omp_get_wtime();
-          
-        err = calc_tke_error(sglbm, count);
-
-        std::cout << "iter: " << i << " " << "CPI time used: " << end - start << "s" << "\t" << "TKE error " << err << std::endl;
-        sglbm.output(dir, i);
-
-        start = end;
-        t = 0.0;
-      }
+        {
+            if (iter % outputInterval == 0 || iter == maxIter) {
+                double now = omp_get_wtime();
+                T err = calc_tke_error(s, iter);
+                std::cout << "iter: " << iter
+                          << ", Δt: " << now - tCheckpoint << " s"
+                          << ", TKE err: " << err << std::endl;
+                s.output(dir, iter);
+                tCheckpoint = now;
+                iterOut = iter;
+            }
+        }
     }
-    count = i;
-  }
-  count = int(td * 0.5) - 1;
-  end = omp_get_wtime();
-  sglbm.output(dir, count);
 
-  err = calc_tke_error(sglbm, count);
+    // final output -----------------------------------------------------------                
+    double now = omp_get_wtime();
+                T err = calc_tke_error(s, iterOut);
+                std::cout << "iter: " << iterOut
+                          << ", Δt: " << now - tCheckpoint << " s"
+                          << ", TKE err: " << err << std::endl;
+    s.output(dir, iterOut);
+    double tEnd = omp_get_wtime();
+    T errFinal = calc_tke_error(s, iterOut);
 
-  std::cout << "total CPI time used: " << end - start_0 << "s" << "\t" << "TKE error " << err << std::endl;
+    std::cout << "total time: " << tEnd - tStart << " s, final TKE err: " << errFinal << std::endl;
 
-  velocity_central(dir, sglbm, (sglbm.nx/2)+1, (sglbm.ny/2)+1);
-  velocity_all(dir, sglbm);
-  outputTKE(dir, sglbm, count, end - start_0);
+    velocity_central(dir, s, (s.nx/2)+1, (s.ny/2)+1);
+    velocity_all(dir, s);
+    outputTKE(dir, s, iterOut, tEnd - tStart);
 
-
-
-  return 0;
+    return 0;
 }

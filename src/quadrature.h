@@ -5,286 +5,274 @@
 #include "utils.h"
 #include "quadrature_base.h"
 #include "polynomial.h"
+#include "matrix_operation.h"
 
-// Uncomment the following line if you have GSL installed and want to use it
-// #define USE_GSL
 
-#ifdef USE_GSL
-#include <gsl/gsl_integration.h>
-#endif
+// namespace olb {
+
+// namespace uq {
 
 namespace Quadrature {
 
-template <typename PolynomialBasis>
-class Quadrature : public QuadratureBase {
+template<class...>
+struct always_false : std::false_type {};
+
+// Add this function to matrix_operation.h
+template <typename T>
+T Pythag(T a, T b) {
+    T absa = std::fabs(a);
+    T absb = std::fabs(b);
+    return (absa > absb ? absa * std::sqrt(1.0 + (absb / absa) * (absb / absa)) :
+            (absb == 0.0 ? 0.0 : absb * std::sqrt(1.0 + (absa / absb) * (absa / absb))));
+}
+
+template <typename T, typename PolynomialBasis>
+class Quadrature : public QuadratureBase<T> {
 public:
-    Quadrature(int order, QuadratureMethod method = QuadratureMethod::HouseholderQR)
-        : order(order), basis(std::make_shared<PolynomialBasis>()), method(method) {
-        computeQuadrature();
+    Quadrature(size_t nq, QuadratureMethod method = QuadratureMethod::WilkinsonShiftQR)
+        : nq(nq), basis(std::make_shared<PolynomialBasis>()), method(method) {
+        performQRDecomposition();
     }
 
-    const std::vector<double>& getPoints() const override {
+    const std::vector<T>& getPoints() const override {
         return points;
     }
 
-    const std::vector<double>& getWeights() const override {
+    const std::vector<T>& getWeights() const override {
         return weights;
     }
 
 private:
-    int order;
+    size_t nq;
     std::shared_ptr<PolynomialBasis> basis;
     QuadratureMethod method;
-    std::vector<double> points;
-    std::vector<double> weights;
+    std::vector<T> points;
+    std::vector<T> weights;
 
-void computeQuadrature() {
-#ifdef USE_GSL
-    if (method == QuadratureMethod::GSL) {
-        std::cout << "Using GSL quadrature method." << std::endl;
-        computeQuadratureGSL();
-    } else if (method == QuadratureMethod::HouseholderQR) {
-        std::cout << "Using HouseholderQR quadrature method." << std::endl;
-        computeQuadratureHouseholderQR();
-    } else {
-        std::cerr << "Warning: Unsupported quadrature method. Defaulting to HouseholderQR." << std::endl;
-        computeQuadratureHouseholderQR();
-    }
-#else
-    if (method != QuadratureMethod::HouseholderQR) {
-        std::cerr << "Warning: GSL is not enabled. Falling back to HouseholderQR quadrature method." << std::endl;
-    }
-    std::cout << "Using HouseholderQR quadrature method." << std::endl;
-    computeQuadratureHouseholderQR();
-#endif
-}
-
-
-#ifdef USE_GSL
-    void computeQuadratureGSL() {
-        // Check if PolynomialBasis supports GSL
-        if constexpr (std::is_same_v<PolynomialBasis, Polynomials::LegendreBasis>) {
-            computeQuadraturePointsWeightsGSL(order, points, weights);
-
-            // Normalize weights if necessary
-            double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
-            for (auto& w : weights) {
-                w /= sum;
-            }
-        } else {
-            throw std::runtime_error("GSL quadrature method is only supported for Legendre polynomials.");
-        }
-    }
-
-    void computeQuadraturePointsWeightsGSL(int n, std::vector<double>& points, std::vector<double>& weights) {
-        if (n <= 0) {
-            throw std::invalid_argument("Number of quadrature points must be positive.");
-        }
-
-        points.resize(n);
-        weights.resize(n);
-
-        gsl_integration_glfixed_table* table = gsl_integration_glfixed_table_alloc(n);
-
-        double xi, wi;
-        for (size_t i = 0; i < static_cast<size_t>(n); ++i) {
-            gsl_integration_glfixed_point(-1.0, 1.0, i, &xi, &wi, table);
-            points[i] = xi;
-            weights[i] = wi * 0.5; // Adjust weights if necessary
-            // std::cout << "Point: " << points[i] << ", Weight: " << weights[i] << std::endl;
-        }
-
-        gsl_integration_glfixed_table_free(table);
-    }
-#endif
-
-    void computeQuadratureHouseholderQR() {
+    void performQRDecomposition() {
         // Step 1: Construct the Jacobi matrix using the basis
-        auto J = basis->constructJacobiMatrix(order);
+        auto J = basis->constructJacobiMatrix(nq);
 
-        // Step 2: Compute eigenvalues (quadrature points) using Householder method
-        std::vector<std::vector<double>> R;
-
-        computeEigenvalues(J, R);
-
-        // print J and R after operation:
-        // std::cout << "J matrix:\n";
-        // for (size_t i = 0; i < J.size(); ++i) {
-        //     for (size_t j = 0; j < J[i].size(); ++j) {
-        //         std::cout << J[i][j] << " ";
-        //     }
-        //     std::cout << std::endl;
-        // }
-
-        // std::cout << "R matrix:\n";
-        // for (size_t i = 0; i < R.size(); ++i) {
-        //     for (size_t j = 0; j < R[i].size(); ++j) {
-        //         std::cout << R[i][j] << " ";
-        //     }
-        //     std::cout << std::endl;
-        // }
-
-
-        // Extract eigenvalues (diagonal elements of R)
-        points.resize(order);
-        for (int i = 0; i < order; ++i) {
-            points[i] = R[i][i];
+        // Step 2: Perform the appropriate QR decomposition
+        if (method == QuadratureMethod::HouseholderQR) {
+            // std::cout << "Using HouseholderQR method." << std::endl;
+            points = HouseholderQRDecomposition(J); // Perform Householder QR and get eigenvalues
+        } else if (method == QuadratureMethod::WilkinsonShiftQR) {
+            // std::cerr << "Using Wilkinson's Shift QR method." << std::endl;
+            points = WilkinsonShiftQRDecomposition(J); // Perform Wilkinson Shift QR
+        } else {
+            // std::cerr << "Warning: Unsupported method. Defaulting to Wilkinson's Shift QR." << std::endl;
+            points = WilkinsonShiftQRDecomposition(J); // Default to Wilkinson Shift QR
         }
-
-        // Sort the points
-        std::sort(points.begin(), points.end());
 
         // Step 3: Compute quadrature weights
         computeWeights();
     }
 
-    void computeWeights() {
-        weights.resize(points.size());
-        for (size_t i = 0; i < points.size(); ++i) {
-            double x = points[i];
-            weights[i] = computeQuadratureWeight(*basis, order, x);
+    // Wilkinson Shift QR decomposition to compute the eigenvalues of a tridiagonal matrix
+    std::vector<T> WilkinsonShiftQRDecomposition(const std::vector<std::vector<T>>& J) {
+        size_t n = J.size();
+        std::vector<T> d(n, 0.0); // Diagonal elements (eigenvalues)
+        std::vector<T> e(n, 0.0); // Off-diagonal elements
+
+        // Initialize d and e from the input matrix J
+        for (size_t i = 0; i < n; ++i) {
+            d[i] = J[i][i];
+            if (i > 0) e[i] = J[i][i - 1];
         }
 
-        // Normalize weights if necessary
-        double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
-        for (double& w : weights) {
-            w /= sum;
-        }
-    }
+        const T eps = std::numeric_limits<T>::epsilon();
+        T g, r, p, s, c, f, b;
+        int iter, l, m, i;
 
-    // Templated computeQuadratureWeight function
-    template <typename Basis>
-    double computeQuadratureWeight(const Basis& basis, int n, double x) {
-        static_assert(!std::is_same_v<Basis, Basis>, "Unsupported polynomial basis for quadrature weights.");
-        return 0.0;
-    }
+        // Reduce subdiagonal elements
+        for (i = 1; i < static_cast<int>(n); ++i) e[i - 1] = e[i];
+        e[n - 1] = 0.0;
 
-    // Specialization for LegendreBasis
-    double computeQuadratureWeight(const Polynomials::LegendreBasis& basis, int n, double x) {
-        double Pn_prime = basis.derivativePolynomial(n - 1, x);
-        return 2.0 / ((1.0 - x * x) * Pn_prime * Pn_prime);
-    }
-
-    // Specialization for HermiteBasis
-    double computeQuadratureWeight(const Polynomials::HermiteBasis& basis, int n, double x) {
-        double Hn_minus1 = basis.evaluatePolynomial(n - 1, x);
-        return std::exp(-x * x) / (Hn_minus1 * Hn_minus1);
-    }
-
-    // Householder QR decomposition and helper functions
-    void computeEigenvalues(std::vector<std::vector<double>>& J, std::vector<std::vector<double>>& R) {
-        int n = J.size();
-        std::vector<std::vector<double>> Q(n, std::vector<double>(n, 0.0));
-        std::vector<std::vector<double>> J_new = copyMatrix(J);
-        int iter = 1;
-        int max_iter = 1000;
-        double tol = 1e-12;
-
-        while (iter < max_iter) {
-            householderQR(J, Q, R);
-            J_new = matrixMultiplication(R, Q);
-
-            if (iter % 100 == 0) {
-                if (isConverged(J, J_new, tol)) {
-                    std::cout << "Householder QR converged in " << iter << " iterations. Tol is " << tol << std::endl;
-                    break;
+        for (l = 0; l < static_cast<int>(n); ++l) {
+            iter = 0;
+            do {
+                // Find small subdiagonal element to isolate a diagonal block
+                for (m = l; m < static_cast<int>(n) - 1; ++m) {
+                    T dd = std::fabs(d[m]) + std::fabs(d[m + 1]);
+                    if (std::fabs(e[m]) <= eps * dd) break;
                 }
-                
-                std::cout << "Householder QR in " << iter << " iterations. Tol is " << tol << std::endl;
+
+                // If no convergence yet, apply QR with Wilkinson shift
+                if (m != l) {
+                    if (++iter == 30) {
+                        std::cerr << "Too many iterations in QR decomposition!\n";
+                        return d;  // Early return if no convergence
+                    }
+
+                    // Wilkinson's shift calculation
+                    g = (d[l + 1] - d[l]) / (2.0 * e[l]);
+                    r = Pythag(g, 1.0);
+                    g = d[m] - d[l] + e[l] / (g + std::copysign(r, g));
+
+                    s = c = 1.0;
+                    p = 0.0;
+                    for (i = m - 1; i >= l; --i) {
+                        f = s * e[i];
+                        b = c * e[i];
+                        e[i + 1] = (r = Pythag(f, g));
+                        if (r == 0.0) {
+                            d[i + 1] -= p;
+                            e[m] = 0.0;
+                            break;
+                        }
+                        s = f / r;
+                        c = g / r;
+                        g = d[i + 1] - p;
+                        r = (d[i] - g) * s + 2.0 * c * b;
+                        d[i + 1] = g + (p = s * r);
+                        g = c * r - b;
+                    }
+
+                    if (r == 0.0 && i >= l) continue;
+                    d[l] -= p;
+                    e[l] = g;
+                    e[m] = 0.0;
+                }
+            } while (m != l);
+        }
+
+        // Return the diagonal elements as the eigenvalues
+        std::sort(d.begin(), d.end());
+        return d;
+    }
+
+    // Function to perform Householder QR decomposition
+    void householderQR(std::vector<std::vector<T>>& A, std::vector<std::vector<T>>& Q, std::vector<std::vector<T>>& R) {
+        int m = A.size(); // Number of rows
+        int n = (A.empty() ? 0 : A[0].size()); // Number of columns (assuming all rows have the same number of columns)
+        //R = copyMatrix(A);
+        R = A;
+        Q = MatrixOperations::generateIdentityMatrix<T>(m);
+        for (int k = 0; k < n; ++k) {
+            std::vector<T> x(m - k, 0.0);
+            for (int i = k; i < m; ++i) {
+                x[i - k] = R[i][k];
             }
 
-            J.swap(J_new);
-            iter++;
+            T sign = 1.0;
+            if(x[0] < 0) {
+                sign = -1.0;
+            }
+            T norm = std::sqrt(MatrixOperations::dotProduct(x, x));
+
+            std::vector<T> v = MatrixOperations::vectorScalarProduct(x, 1.0 / (x[0] + sign * norm));
+            v[0] = 1;
+            T tau = 2.0 / MatrixOperations::dotProduct(v, v);
+
+            std::vector<std::vector<T>> H = MatrixOperations::generateIdentityMatrix<T>(m);
+
+            for (int i = k; i < m; ++i) {
+                for (int j = k; j < m; ++j) {
+                    H[i][j] -= tau * v[i - k] * v[j - k];
+                }
+            }
+
+            // Update R with Householder transformation
+            R = MatrixOperations::matrixMultiplication(H, R);
+
+            // Update Q with Householder transformation
+            Q = MatrixOperations::matrixMultiplication(Q, MatrixOperations::transposeMatrix(H));
         }
     }
 
-    // void householderQR(const std::vector<std::vector<double>>& A,
-    //                    std::vector<std::vector<double>>& Q,
-    //                    std::vector<std::vector<double>>& R) {
-    //     int m = A.size();
-    //     int n = A[0].size();
-    //     R = A;
-    //     Q = generateIdentityMatrix(m);
+    // Householder QR decomposition to compute the eigenvalues of a matrix
+    std::vector<T> HouseholderQRDecomposition(const std::vector<std::vector<T>>& J) {
+        size_t n = J.size();
 
-    //     for (int k = 0; k < n; ++k) {
-    //         std::vector<double> x(m - k);
-    //         for (int i = k; i < m; ++i) {
-    //             x[i - k] = R[i][k];
-    //         }
+        // Create a copy of J that we can modify
+        std::vector<std::vector<T>> J_copy = MatrixOperations::copyMatrix(J);
 
-    //         double norm_x = vectorNorm(x);
-    //         double sign = (x[0] >= 0) ? 1.0 : -1.0;
-    //         double u1 = x[0] + sign * norm_x;
-    //         std::vector<double> v = x;
-    //         v[0] = u1;
+        // Shift the diagonal by 1
+        for (size_t i = 0; i < n; ++i) {
+            J_copy[i][i] += 1.0;
+        }
 
-    //         double s = vectorNorm(v);
-    //         if (s != 0.0) {
-    //             for (auto& vi : v) {
-    //                 vi /= s;
-    //             }
-    //         }
+        std::vector<std::vector<T>> Q(n, std::vector<T>(n, 0.0));
+        std::vector<std::vector<T>> R = MatrixOperations::copyMatrix(J_copy);
+        std::vector<std::vector<T>> J_new = MatrixOperations::copyMatrix(J_copy);
+        std::vector<std::vector<T>> J_old = MatrixOperations::copyMatrix(Q);
 
-    //         std::vector<std::vector<double>> H = generateIdentityMatrix(m);
-    //         for (int i = k; i < m; ++i) {
-    //             for (int j = k; j < m; ++j) {
-    //                 H[i][j] -= 2.0 * v[i - k] * v[j - k];
-    //             }
-    //         }
+        size_t iter = 1;
+        size_t max_iter = 10000;
+        T tol = 1e-12;
 
-    //         R = matrixMultiplication(H, R);
-    //         Q = matrixMultiplication(Q, H);
-    //     }
-    // }
+        while (iter < max_iter) {
+            householderQR(J_new, Q, R);
+            J_new = MatrixOperations::matrixMultiplication(R, Q);
 
-    // double vectorNorm(const std::vector<double>& v) {
-    //     double sum = 0.0;
-    //     for (double vi : v) {
-    //         sum += vi * vi;
-    //     }
-    //     return std::sqrt(sum);
-    // }
+            if (isConverged(J_new, J_old, tol)) {
+                break;
+            }
 
-    // std::vector<std::vector<double>> generateIdentityMatrix(int n) {
-    //     std::vector<std::vector<double>> I(n, std::vector<double>(n, 0.0));
-    //     for (int i = 0; i < n; ++i) {
-    //         I[i][i] = 1.0;
-    //     }
-    //     return I;
-    // }
+            J_old.swap(J_new);
+            iter++;
+        }
 
-    // std::vector<std::vector<double>> matrixMultiplication(const std::vector<std::vector<double>>& A,
-    //                                                       const std::vector<std::vector<double>>& B) {
-    //     int m = A.size();
-    //     int n = B[0].size();
-    //     int p = A[0].size();
-    //     std::vector<std::vector<double>> C(m, std::vector<double>(n, 0.0));
+        std::vector<T> eigenvalues(n);
+        for (size_t i = 0; i < n; ++i) {
+            eigenvalues[i] = J_old[i][i] - 1.0; // Extract diagonal as eigenvalues
+        }
+        std::sort(eigenvalues.begin(), eigenvalues.end());
+        return eigenvalues;
+    }
 
-    //     for (int i = 0; i < m; ++i) {
-    //         for (int j = 0; j < n; ++j) {
-    //             double sum = 0.0;
-    //             for (int k = 0; k < p; ++k) {
-    //                 sum += A[i][k] * B[k][j];
-    //             }
-    //             C[i][j] = sum;
-    //         }
-    //     }
-    //     return C;
-    // }
-
-    bool isConverged(const std::vector<std::vector<double>>& A, const std::vector<std::vector<double>>& B, double tol) {
-        int n = A.size();
-        double norm_diff = 0.0;
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j) {
+    // Function to check convergence of two matrices
+    bool isConverged(const std::vector<std::vector<T>>& A, const std::vector<std::vector<T>>& B, T tol) {
+        size_t n = A.size();
+        T norm_diff = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
                 norm_diff += std::abs(A[i][j] - B[i][j]);
             }
         }
-        std::cout << "Norm diff: " << norm_diff << std::endl;
+        // std::cout << "Norm diff: " << norm_diff << std::endl;
         return norm_diff < tol;
     }
+
+    void computeWeights() {
+        weights.resize(points.size());
+
+        // If the “PolynomialBasis” is actually LegendreBasis<T>:
+        if constexpr ( std::is_same_v<PolynomialBasis, Polynomials::LegendreBasis<T>> ) {
+            for (size_t i = 0; i < points.size(); ++i) {
+                T x = points[i];
+                T Pn_prime = basis->derivativePolynomial(nq, x);
+                weights[i] = 2.0 / ((1.0 - x * x) * Pn_prime * Pn_prime);
+            }
+        }
+        // Else if it's HermiteBasis<T>:
+        else if constexpr ( std::is_same_v<PolynomialBasis, Polynomials::HermiteBasis<T>> ) {
+            for (size_t i = 0; i < points.size(); ++i) {
+                T x = points[i];
+                T Hn_minus1 = basis->evaluatePolynomial(nq - 1, x);
+                weights[i] = std::pow(2, nq-1)*std::tgamma(nq+1)*std::sqrt(M_PI)
+                             / std::pow(nq * Hn_minus1, 2);
+            }
+        }
+        else {
+            static_assert(always_false<PolynomialBasis>::value,
+                          "Unsupported basis in Quadrature::computeWeights()");
+        }
+
+        // (optionally normalize)
+        T sum = std::accumulate(weights.begin(), weights.end(), T(0));
+        for (auto& w : weights) {
+            w /= sum;
+        }
+    }
+    
 };
 
 } // namespace Quadrature
+
+// } // namespace uq
+
+// } // namespace olb
 
 #endif // QUADRATURE_H

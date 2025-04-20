@@ -1,6 +1,6 @@
 points_weights_method=1
-order=9
-nq=19
+order=3
+nq=7
 polynomialType=0
 resolution=128
 parameter1=0.8
