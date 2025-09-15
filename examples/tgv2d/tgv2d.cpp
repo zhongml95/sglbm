@@ -109,19 +109,19 @@ void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params, UnitConv
     //--------------------------------------------------------------------------
     //  Taylor–Green vortex initial fields
     //--------------------------------------------------------------------------
-    for (int i = 0; i < s.nx; ++i) {
-        for (int j = 0; j < s.ny; ++j) {
-            const T x = i * s.dx;
-            const T y = j * s.dx;
+    for (int i = 0; i < uc.getResolution(); ++i) {
+        for (int j = 0; j < uc.getResolution(); ++j) {
+            const T x = i * uc.getDx();
+            const T y = j * uc.getDx();
 
             std::vector<T> uChaos(s.get_polynomials_order(), 0.0);
             std::vector<T> vChaos(s.get_polynomials_order(), 0.0);
             std::vector<T> rChaos(s.get_polynomials_order(), 0.0);
 
             // deterministic part (0‑th chaos coefficient)
-            rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
-            uChaos[0] = -u0 * std::cos(x) * std::sin(y);
-            vChaos[0] =  u0 * std::sin(x) * std::cos(y);
+            rChaos[0] = 1.0 - 1.5 * uc.getPhysVelocity() * uc.getPhysVelocity() * std::cos(x + y) * std::cos(x - y);
+            uChaos[0] = -uc.getPhysVelocity() * std::cos(x) * std::sin(y);
+            vChaos[0] =  uc.getPhysVelocity() * std::sin(x) * std::cos(y);
 
             // store in lattice
             s.rho_at(i,j) = rChaos;

@@ -36,12 +36,12 @@
 
 #include "matrixOperation.h"
 #include "polynomial.h"
-#include "quadratureBase.h"
-#include "quadrature.h"  // for get1DRule to call polynomialBasis->getQuadrature()
+#include "quadrature/quadratureBase.h"
+#include "quadrature/quadratureFactory.h"  // for get1DRule to call polynomialBasis->getQuadrature()
 
 namespace olb {
 namespace uq {
-namespace smolyak {
+namespace Quadrature {
 
 
 // helper: fast integer binomial coefficient  C(n,k)
@@ -69,7 +69,7 @@ void get1DRule(
 {
   std::size_t m = static_cast<std::size_t>(level_i);
     if (quadratureMethod == olb::uq::Quadrature::QuadratureMethod::ClenshawCurtis) {
-      // Chaospy’s growth=True behaviour:  order' = 2^ℓ   (ℓ>0)
+      // order' = 2^ℓ   (ℓ>0)
       m = (level_i == 0) ? 0u : (1u << level_i);
     }
     else if ((quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GaussQuadrature)) {
@@ -241,7 +241,7 @@ for (std::size_t n = 0; n < rawPts.size(); ++n)
 
 }
 
-} // namespace smolyak
+} // namespace Quadrature
 } // namespace uq
 } // namespace olb
 

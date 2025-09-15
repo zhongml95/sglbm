@@ -92,7 +92,7 @@ void velocity_all(std::string dir, sglbm<T>& sglbm, UnitConverter<T>& uc) {
 template<typename T>
 void totalKineticEnergy(const sglbm<T>& sglbm, UnitConverter<T>& uc, std::vector<double>& tke, double& tkeAna, int t)
 {
-  double u0 = uc.getPhysVelocity() / uc.getConversionVelocity();
+  double u0 = uc.getPhysVelocity();
   std::vector<double> u2Chaos(sglbm.No, 0.0);
   std::vector<double> v2Chaos(sglbm.No, 0.0);
   std::vector<double> tkeChaos(sglbm.No, 0.0);
@@ -106,9 +106,9 @@ void totalKineticEnergy(const sglbm<T>& sglbm, UnitConverter<T>& uc, std::vector
         tke[alpha] += ((u2Chaos[alpha] + v2Chaos[alpha]) *  0.5 / (sglbm.nx*sglbm.ny*u0*u0));
       }
                
-      double x = i * sglbm.dx;
-      double y = j * sglbm.dx;
-      double k2 = 2.0 * sglbm.dx * sglbm.dx;
+      double x = i * uc.getDx();
+      double y = j * uc.getDx();
+      double k2 = 2.0 * uc.getDx() * uc.getDx();
       double damp = std::exp(-k2 * uc.getPhysViscosity() * t);
       double uAna = -u0 * std::cos(x) * std::sin(y) * damp;
       double vAna =  u0 * std::sin(x) * std::cos(y) * damp;

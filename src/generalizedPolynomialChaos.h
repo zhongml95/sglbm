@@ -38,7 +38,7 @@
 // Include the polynomial basis and quadrature headers
 #include "polynomial.h"
 
-#include "quadrature.h"
+#include "quadrature/quadrature.h"
 
 namespace olb {
 

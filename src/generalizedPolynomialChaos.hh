@@ -28,7 +28,7 @@
 
 #include "generalizedPolynomialChaos.h"
 #include "matrixOperation.h"
-#include "smolyak.h"
+#include "quadrature/quadrature.h"
 
 #include <numeric>
 #include <algorithm>
@@ -109,7 +109,7 @@ void GeneralizedPolynomialChaos<T>::initializeQuadratures()
   }
   else {
     // Generate sparse grid points and weights
-    olb::uq::smolyak::generateSparseGrid(
+    olb::uq::Quadrature::generateSparseGrid(
       nq,
       randomNumberDimension,
       polynomialBases,

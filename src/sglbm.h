@@ -80,6 +80,10 @@ public:
     ops = std::make_unique<olb::uq::GeneralizedPolynomialChaos<T>>(uq.getOps());
     No         = ops->getPolynomialsOrder();
     total_nq   = ops->getQuadraturePointsNumber();
+
+    N = unit.getResolution();
+    nx = unit.getResolution(); // update it in the future if needed
+    ny = unit.getResolution();
   }
 
   // ======================================================================
@@ -94,85 +98,6 @@ public:
   inline const std::vector<T>& v_at  (int i,int j) const{ return  v[idx(i,j)]; }
   inline std::vector<T>&       rho_at(int i,int j){ return rho[idx(i,j)]; }
   inline const std::vector<T>& rho_at(int i,int j) const{ return rho[idx(i,j)]; }
-
-  std::vector<T> find_intersection(std::vector<T> center, T radius, std::vector<int> start_point, std::vector<int> end_point)
-  {
-    T x0 = center[0];
-    T y0 = center[1];
-
-    T x1 = start_point[0];
-    T y1 = start_point[1];
-
-    T x2 = end_point[0];
-    T y2 = end_point[1];
-
-    std::vector<T> inp(2, 0.0);
-    if (radius == 0) {
-      return { x1, y1 };
-    }
-
-    if (x1 == x2) {
-      inp[0] = x1;
-      if (std::abs(radius) >= std::abs(x1 - x0)) {
-        T p1 = y0 - std::sqrt(radius * radius - (x1 - x0) * (x1 - x0));
-        T p2 = y0 + std::sqrt(radius * radius - (x1 - x0) * (x1 - x0));
-        if (std::max(y1, y2) >= p2) {
-          inp[2] = p2;
-        }
-        if (std::min(y1, y2) <= p1) {
-          inp[2] = p1;
-        }
-      }
-    }
-    else {
-      T k = (y1 - y2) / (x1 - x2);
-      T b0 = y1 - k * x1;
-
-      T a = k * k + 1;
-      T b = 2.0 * k * (b0 - y0) - 2.0 * x0;
-      T c = (b0 - y0) * (b0 - y0) + x0 * x0 - radius * radius;
-      T delta = b * b - 4 * a * c;
-      if (delta >= 0) {
-        T p1x = (-1.0 * b - std::sqrt(delta)) / (2 * a);
-        T p2x = (-1.0 * b + std::sqrt(delta)) / (2 * a);
-        T p1y = k * p1x + b0;
-        T p2y = k * p2x + b0;
-        if (p1x >= std::min(x1, x2) && p1x <= std::max(x1, x2)) {
-          inp[1] = p1x;
-          inp[2] = p1y;
-        }
-        else {
-          inp[1] = p2x;
-          inp[2] = p2y;
-        }
-      }
-    }
-    return inp;
-  }
-
-
-  void setCircle(T centerX, T centerY, T radius)
-  {
-    bouzidiQ.resize(nx);
-    for (int i = 0; i < nx; ++i) {
-      bouzidiQ[i].resize(ny);
-      for (int j = 0; j < ny; ++j) {
-        bouzidiQ[i][j].resize(9);
-      }
-    }
-
-    for (int i = 0; i < nx; ++i) {
-      for (int j = 0; j < ny; ++j) {
-        if (material[i][j] == 3) {
-          for (int k = 1; k < 9; ++k) {
-            std::vector<T> intersection(2, 0.0);
-            intersection = find_intersection({ centerX / dx + 1,centerY / dx + 1 }, L / dx, { i,j }, { i + cx[k],j + cy[k] });
-            bouzidiQ[i][j][k] = 1.0 - std::sqrt((i - intersection[1]) * (i - intersection[1]) + (j - intersection[2]) * (j - intersection[2])) / sqrt(cx[k] * cx[k] + cy[k] * cy[k]);
-          }
-        }
-      }
-    }
-  }
 
     // ----------------------------------------------------------------------
     // Field allocation (SoA)

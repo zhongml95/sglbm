@@ -1,7 +1,7 @@
 <Parameters>
   <points_weights_method>1</points_weights_method>
-  <order>3</order>
-  <nq>7</nq>
+  <order>4</order>
+  <nq>9</nq>
   <polynomialType>0</polynomialType>
   <resolution>32</resolution>
 

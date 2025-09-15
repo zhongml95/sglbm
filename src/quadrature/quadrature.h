@@ -22,22 +22,16 @@
  *  Boston, MA  02110-1301, USA.
  */
 
-#ifndef UQ_H
-#define UQ_H
+// quadrature.h
+#pragma once
+#ifndef QUADRATURE_H
+#define QUADRATURE_H
 
-#include "distribution.h"
-#include "generalizedPolynomialChaos.h"
-#include "latinHypercubeSampling.h"
-#include "monteCarlo.h"
-#include "polynomial.h"
-// #include "postprocessing.h"
-#include "quasiMonteCarlo.h"
-#include "uncertaintyQuantification.h"
-#include "filesIO.h"
-#include "matrixOperation.h"
-// #include "quadrature.h"
-// #include "quadratureBase.h"
-// #include "genzKeisterLibrary.h"
-// #include "fft.h"
+#include "quadratureBase.h"
+#include "quadratureFactory.h"
+#include "quadratureRules/gaussQuadrature.h"
+#include "quadratureRules/clenshawCurtisQuadrature.h"
+#include "quadratureRules/genzKeisterQuadrature.h"
+#include "smolyak.h"
 
-#endif // UQ_H
+#endif // QUADRATURE_H
