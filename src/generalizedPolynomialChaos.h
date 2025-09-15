@@ -93,6 +93,11 @@ public:
   void getPhiRan(std::vector<T>& phiRan);
   void getCoefficients(std::vector<std::vector<std::vector<T>>>& polynomialCoeffs);
 
+  // Getter for distributions
+  const std::vector<Distribution<T>>& getDistributions() const {
+    return distributions;
+  }
+
 private:
   std::size_t                              order;
   std::size_t                              No;      // Number of polynomials

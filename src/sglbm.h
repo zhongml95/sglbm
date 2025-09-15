@@ -1,13 +1,30 @@
+#pragma once
 #ifndef SGLBM_H
 #define SGLBM_H
+
 #include "uq.h"
 #include "uq.hh"
-#include <iostream>
-#include <fstream>
-#include <ctime>
-#include <omp.h>
-#include <sys/stat.h>
+
+#include <array>
+#include <cmath>
+#include <cstddef>
 #include <iomanip>
+#include <iosfwd>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+#include <algorithm>
+
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
+
+#include "sglbm.cpp"
+#include "parameters.h"
+#include "unitconverter.h"
+
+
 
 #define totalCollocation
 // #define onlyUVCollocation
@@ -23,17 +40,14 @@ public:
   // ---------------- physical & lattice parameters ------------------------
   int  N{0}, nx{0}, ny{0};
   T    L{1}, dx{1}, lx{0}, ly{0};
-  T    physVelocity{0}, physViscosity{0}, physDensity{1};
-  T    Re{0}, tau{0}, dt{0};
-  T    conversionViscosity{1}, conversionVelocity{1}, conversionDensity{1},
-        conversionMass{1}, conversionForce{1}, u0{0}, omega0{0};
   std::string dir;
+
+  UnitConverter<T> unit;
 
   // ---------------- stochastic data --------------------------------------
   std::unique_ptr<GeneralizedPolynomialChaos<T>> ops;   // shared pattern
   int  No{0}, total_nq{0};
   std::vector<int> polynomial_types;
-  std::vector<T>   parameter1, parameter2;
 
   // ---------------- discrete velocity model ------------------------------
   const T cs2{ T(1) / 3 };                                   // c_s^2
@@ -59,15 +73,13 @@ public:
   //  Ctor
   // ======================================================================
   sglbm(const std::string& _dir,
-    const Parameters&   params,
-    UncertaintyQuantification<T>& uq)
-    : dir(_dir) {
-
+        const UnitConverter<T>& unitConverter,
+        UncertaintyQuantification<T>& uq)
+  : dir(_dir), unit(unitConverter)
+  {
     ops = std::make_unique<olb::uq::GeneralizedPolynomialChaos<T>>(uq.getOps());
     No         = ops->getPolynomialsOrder();
     total_nq   = ops->getQuadraturePointsNumber();
-    parameter1 = params.parameter1;
-    parameter2 = params.parameter2;
   }
 
   // ======================================================================
@@ -139,48 +151,6 @@ public:
   }
 
 
-  void UnitConverterFromResolutionAndRelaxationTime(const Parameters params)
-  {
-    std::cout << "set simulation parameter" << std::endl;
-    N = params.resolution;
-    tau = params.tau;
-    L = params.L;
-    physVelocity = params.physVelocity;
-
-    if (params.Re == 0) {
-      physViscosity = params.physViscosity;
-      Re = physVelocity * L / physViscosity;
-    }
-    else if (params.physViscosity == 0){
-      Re = params.Re;
-      physViscosity = physVelocity * L / Re;
-    }
-
-    physDensity = 1.0;
-    
-    dx = L / N;
-    dt = (tau - 0.5) / 3.0 * (dx * dx) / physViscosity;
-
-    conversionViscosity = dx * dx / dt;
-    conversionVelocity = dx / dt;
-    conversionDensity = 1.0;
-    conversionMass = conversionDensity * dx * dx * dx;
-    conversionForce = conversionMass * dx / dt / dt;
-    u0 = physVelocity / conversionVelocity;
-    omega0 = 1.0 / (3 * physViscosity / conversionViscosity + 0.5);
-
-    std::cout << "resolution " << N << std::endl;
-    std::cout << "tau = " << tau << std::endl;
-    std::cout << "nu = " << physViscosity << std::endl;
-    std::cout << "Re = " << Re << std::endl;
-    std::cout << "u0 = " << u0 << std::endl;
-    std::cout << "converstionVelocity = " << conversionVelocity << std::endl;
-    std::cout << "converstionViscosity = " << conversionViscosity << std::endl;
-    std::cout << "dx = " << dx << std::endl;
-    std::cout << "dt = " << dt << std::endl;
-    std::cout << "Ma = " << u0 * std::sqrt(3.0) << std::endl;
-  }
-
   void setCircle(T centerX, T centerY, T radius)
   {
     bouzidiQ.resize(nx);
@@ -230,7 +200,7 @@ public:
     // ----------------------------------------------------------------------
   void initializeDistributionFunction() {
 
-    std::vector<T> rRan(total_nq, physDensity),
+    std::vector<T> rRan(total_nq, unit.getPhysDensity()),
     uRan(total_nq, 0.0), vRan(total_nq, 0.0),
     feqRan(total_nq), feqChaos(No);
     
@@ -447,7 +417,7 @@ public:
         ops->chaosProduct(v[id], v[id], v2);
         ops->chaosSum(u2, v2, mag);
 
-        outputFile << x << "\t" << y << "\t" << std::sqrt(ops->mean(mag)) << "\t" << ops->mean(u[id]) * conversionVelocity << "\t" << ops->mean(v[id]) * conversionVelocity << "\t" << std::sqrt(ops->std(mag)) << "\t" << ops->std(u[id]) * conversionVelocity << "\t" << ops->std(v[id]) * conversionVelocity  << "\t" << material[i][j] <<  "\n";
+        outputFile << x << "\t" << y << "\t" << std::sqrt(ops->mean(mag)) << "\t" << ops->mean(u[id]) * unit.getConversionVelocity() << "\t" << ops->mean(v[id]) * unit.getConversionVelocity() << "\t" << std::sqrt(ops->std(mag)) << "\t" << ops->std(u[id]) * unit.getConversionVelocity() << "\t" << ops->std(v[id]) * unit.getConversionVelocity() << "\t" << material[i][j] <<  "\n";
       }
     }
     outputFile.close();
@@ -507,14 +477,6 @@ public:
     }
   }
 
-  T getParameter1(int index) {
-    return parameter1[index];
-  }
-
-  T getParameter2(int index) {
-    return parameter2[index];
-  }
-
   int get_polynomials_order() {
     return No;
   }
@@ -522,9 +484,9 @@ public:
   int get_quadrature_points_number() {
     return total_nq;
   }
-  
+
 };
 
 
 
-#endif // LBM_H
+#endif // SGLBM_H

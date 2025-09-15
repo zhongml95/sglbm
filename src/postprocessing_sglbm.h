@@ -5,7 +5,7 @@
 #include "sglbm.h"
 
 template<typename T>
-void velocity_central(std::string dir, sglbm<T>& sglbm, int idx, int idy) {
+void velocity_central(std::string dir, sglbm<T>& sglbm, UnitConverter<T>& uc, int idx, int idy) {
 
   // velocity in x direction at the center verticle line of the domain
   std::string filenameU = dir + "final/u.dat";
@@ -13,7 +13,7 @@ void velocity_central(std::string dir, sglbm<T>& sglbm, int idx, int idy) {
   for(int j = 0; j < sglbm.ny; ++j){
       const size_t id = sglbm.idx(idx,j);
       outputFileU.precision(20);  
-      outputFileU << j * sglbm.dx << "\t" << sglbm.ops->mean(sglbm.u[id]) * sglbm.conversionVelocity << "\t" << sglbm.ops->std(sglbm.u[id]) * sglbm.conversionVelocity;
+      outputFileU << j * sglbm.dx << "\t" << sglbm.ops->mean(sglbm.u[id]) * uc.getConversionVelocity() << "\t" << sglbm.ops->std(sglbm.u[id]) * uc.getConversionVelocity();
 
       outputFileU << "\n";
     }      
@@ -26,7 +26,7 @@ void velocity_central(std::string dir, sglbm<T>& sglbm, int idx, int idy) {
   for(int i = 0; i < sglbm.nx; ++i){
       const size_t id = sglbm.idx(i,idy);
       outputFileV.precision(20);  
-      outputFileV << i * sglbm.dx << "\t" << sglbm.ops->mean(sglbm.v[id]) * sglbm.conversionVelocity << "\t" << sglbm.ops->std(sglbm.v[id]) * sglbm.conversionVelocity;
+      outputFileV << i * sglbm.dx << "\t" << sglbm.ops->mean(sglbm.v[id]) * uc.getConversionVelocity() << "\t" << sglbm.ops->std(sglbm.v[id]) * uc.getConversionVelocity();
 
       outputFileV << "\n";
     }      
@@ -34,7 +34,7 @@ void velocity_central(std::string dir, sglbm<T>& sglbm, int idx, int idy) {
 }
 
 template<typename T>
-void velocity_all(std::string dir, sglbm<T>& sglbm) {
+void velocity_all(std::string dir, sglbm<T>& sglbm, UnitConverter<T>& uc) {
 
   // mean velocity in x direction of the domain
   std::string filenameU = dir + "final/u_mean.dat";
@@ -43,7 +43,7 @@ void velocity_all(std::string dir, sglbm<T>& sglbm) {
     for(int i = 0; i < sglbm.nx; ++i){
       const size_t id = sglbm.idx(i,j);
       outputFileU.precision(20);  
-      outputFileU << sglbm.ops->mean(sglbm.u[id]) * sglbm.conversionVelocity << "\t" ;
+      outputFileU << sglbm.ops->mean(sglbm.u[id]) * uc.getConversionVelocity() << "\t" ;
     }      
     outputFileU << "\n";
   }
@@ -56,7 +56,7 @@ void velocity_all(std::string dir, sglbm<T>& sglbm) {
     for(int i = 0; i < sglbm.nx; ++i) {
       const size_t id = sglbm.idx(i,j);
       outputFileV.precision(20);  
-      outputFileV << sglbm.ops->mean(sglbm.v[id]) * sglbm.conversionVelocity << "\t";
+      outputFileV << sglbm.ops->mean(sglbm.v[id]) * uc.getConversionVelocity() << "\t";
     }      
     outputFileV << "\n";
   }
@@ -69,7 +69,7 @@ void velocity_all(std::string dir, sglbm<T>& sglbm) {
     for(int i = 0; i < sglbm.nx; ++i){
       const size_t id = sglbm.idx(i,j);
       outputFileUStd.precision(20);
-      outputFileUStd << sglbm.ops->std(sglbm.u[id]) * sglbm.conversionVelocity << "\t" ;
+      outputFileUStd << sglbm.ops->std(sglbm.u[id]) * uc.getConversionVelocity() << "\t" ;
     }      
     outputFileUStd << "\n";
   }
@@ -82,7 +82,7 @@ void velocity_all(std::string dir, sglbm<T>& sglbm) {
     for(int i = 0; i < sglbm.nx; ++i) {
       const size_t id = sglbm.idx(i,j);
       outputFileVStd.precision(20);  
-      outputFileVStd << sglbm.ops->std(sglbm.v[id]) * sglbm.conversionVelocity << "\t";
+      outputFileVStd << sglbm.ops->std(sglbm.v[id]) * uc.getConversionVelocity() << "\t";
     }      
     outputFileVStd << "\n";
   }
@@ -90,8 +90,9 @@ void velocity_all(std::string dir, sglbm<T>& sglbm) {
 }
 
 template<typename T>
-void totalKineticEnergy(const sglbm<T>& sglbm, std::vector<double>& tke, double& tkeAna, int t)
+void totalKineticEnergy(const sglbm<T>& sglbm, UnitConverter<T>& uc, std::vector<double>& tke, double& tkeAna, int t)
 {
+  double u0 = uc.getPhysVelocity() / uc.getConversionVelocity();
   std::vector<double> u2Chaos(sglbm.No, 0.0);
   std::vector<double> v2Chaos(sglbm.No, 0.0);
   std::vector<double> tkeChaos(sglbm.No, 0.0);
@@ -102,30 +103,30 @@ void totalKineticEnergy(const sglbm<T>& sglbm, std::vector<double>& tke, double&
       sglbm.ops->chaosProduct(sglbm.v[id], sglbm.v[id], v2Chaos);
       
       for (int alpha = 0; alpha < sglbm.No; ++alpha) {
-        tke[alpha] += ((u2Chaos[alpha] + v2Chaos[alpha]) *  0.5 / (sglbm.nx*sglbm.ny*sglbm.u0*sglbm.u0));
+        tke[alpha] += ((u2Chaos[alpha] + v2Chaos[alpha]) *  0.5 / (sglbm.nx*sglbm.ny*u0*u0));
       }
                
       double x = i * sglbm.dx;
       double y = j * sglbm.dx;
       double k2 = 2.0 * sglbm.dx * sglbm.dx;
-      double damp = std::exp(-k2 * sglbm.physViscosity * t);
-      double uAna = -sglbm.u0 * std::cos(x) * std::sin(y) * damp;
-      double vAna =  sglbm.u0 * std::sin(x) * std::cos(y) * damp;
-      tkeAna += ((uAna * uAna + vAna * vAna) * 0.5 /(sglbm.nx * sglbm.ny * sglbm.u0 * sglbm.u0));
+      double damp = std::exp(-k2 * uc.getPhysViscosity() * t);
+      double uAna = -u0 * std::cos(x) * std::sin(y) * damp;
+      double vAna =  u0 * std::sin(x) * std::cos(y) * damp;
+      tkeAna += ((uAna * uAna + vAna * vAna) * 0.5 /(sglbm.nx * sglbm.ny * u0 * u0));
 
     }
   }
 }
 
 template<typename T>
-void outputTKE(std::string dir, sglbm<T>& sglbm, int t, double total_computational_time)
+void outputTKE(std::string dir, sglbm<T>& sglbm, UnitConverter<T>& uc, int t, double total_computational_time)
 {
   std::string filenameTKE = dir + "final/tke.dat";
   std::ofstream outputFileTKE(filenameTKE);
   double tkeAna = 0.0;
 
   std::vector<double> tke(sglbm.No, 0.0);
-  totalKineticEnergy(sglbm, tke, tkeAna, t);
+  totalKineticEnergy(sglbm, uc, tke, tkeAna, t);
 
   outputFileTKE.precision(20);  
   std::cout << "tke: " << sglbm.ops->mean(tke) << " " << sglbm.ops->std(tke) << " " << tkeAna << " " << total_computational_time << std::endl;

@@ -3,8 +3,8 @@
 Stochastic Galerkin Lattice Boltzmann Method (SG-LBM) — a C++20 implementation for intrusive uncertainty quantification in Lattice Boltzmann simulations.  
 This repository provides a research-grade framework to reproduce the algorithm described in:
 
-> **M. Zhong, S. Simonis, M. Krause, M. Frank (2024).**  
-> *A Stochastic Galerkin Lattice Boltzmann Method for Uncertainty Quantification.*  
+> **M. Zhong, T. Xiao, M. Krause, M. Frank, S. Simonis (2024).**  
+> *A stochastic Galerkin lattice Boltzmann method for incompressible fluid flows with uncertainties.*  
 > Journal of Computational Physics, 113344.  
 > [https://doi.org/10.1016/j.jcp.2024.113344](https://doi.org/10.1016/j.jcp.2024.113344)
 

@@ -18,6 +18,7 @@
 #include "../../src/postprocessing_sglbm.h"
 
 using T = double;
+using namespace olb;
 
 // -----------------------------------------------------------------------------
 //  Compile‑time switches for the stochastic parameter you want to study
@@ -31,20 +32,20 @@ using T = double;
 // -----------------------------------------------------------------------------
 
 template<typename T>
-T calc_tke_error(const sglbm<T>& sglbm, int count)
+T calc_tke_error(const sglbm<T>& sglbm, UnitConverter<T>& uc, int count)
 {
     std::vector<T> tke(sglbm.ops->getPolynomialsOrder(), 0.0);
     T tkeAna = 0.0;
-    totalKineticEnergy(sglbm, tke, tkeAna, count);
+    totalKineticEnergy(sglbm, uc, tke, tkeAna, count);
     return std::abs((sglbm.ops->mean(tke) - tkeAna) / tkeAna);
 }
 
-void setGeometry(sglbm<T>& s)
+void setGeometry(sglbm<T>& s, UnitConverter<T>& uc)
 {
     std::cout << "start setting geometry\n";
 
-    s.nx = s.N;
-    s.ny = s.N;
+    s.nx = uc.getResolution();
+    s.ny = uc.getResolution();
 
     /* create an nx × ny array filled with 1 (fluid) */
     s.material.assign(s.nx, std::vector<int>(s.ny, 1));
@@ -59,9 +60,10 @@ void setGeometry(sglbm<T>& s)
 // -----------------------------------------------------------------------------
 
 template<typename T>
-void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params)
+void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params, UnitConverter<T>& uc)
 {
     s.prepareLattice();
+    double u0 = uc.getPhysVelocity() / uc.getConversionVelocity();
 
     std::cout << "polynomial order: " << s.get_polynomials_order() << "\n";
     std::cout << "quadrature points number: " << s.get_quadrature_points_number() << "\n";
@@ -90,11 +92,11 @@ void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params)
         // viscosity provided as SC samples from the GPC object
         auto physViscRan = s.ops->getStochasticCollocationSample(); // returns [nq][?]
         for (int q = 0; q < s.get_quadrature_points_number(); ++q)
-            omegaRan[q] = 1.0 / (3.0 * physViscRan[q][0] / s.conversionViscosity + 0.5);
+            omegaRan[q] = 1.0 / (3.0 * physViscRan[q][0] / uc.getConversionViscosity() + 0.5);
 
     #else   // deterministic omega (default)
         omegaRan.assign(s.get_quadrature_points_number(),
-                        1.0 / (3.0 * (s.physVelocity * s.L / s.Re) / s.conversionViscosity + 0.5));
+                        1.0 / (3.0 * (s.physVelocity * s.L / s.Re) / uc.getConversionViscosity() + 0.5));
     #endif
 
         s.ops->randomToChaos(omegaRan, omegaChaos);
@@ -117,9 +119,9 @@ void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params)
             std::vector<T> rChaos(s.get_polynomials_order(), 0.0);
 
             // deterministic part (0‑th chaos coefficient)
-            rChaos[0] = 1.0 - 1.5 * s.u0 * s.u0 * std::cos(x + y) * std::cos(x - y);
-            uChaos[0] = -s.u0 * std::cos(x) * std::sin(y);
-            vChaos[0] =  s.u0 * std::sin(x) * std::cos(y);
+            rChaos[0] = 1.0 - 1.5 * u0 * u0 * std::cos(x + y) * std::cos(x - y);
+            uChaos[0] = -u0 * std::cos(x) * std::sin(y);
+            vChaos[0] =  u0 * std::sin(x) * std::cos(y);
 
             // store in lattice
             s.rho_at(i,j) = rChaos;
@@ -132,8 +134,8 @@ void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params)
                 std::array<T,2> coeff{};
                 auto dist = uniform(a,b);
                 s.ops->convert2affinePCE(dist, coeff);
-                s.u_at(i,j)[mode] -= s.u0 * 0.25 * coeff[1] * std::cos(x) * std::sin(y);
-                s.v_at(i,j)[mode] += s.u0 * 0.25 * coeff[1] * std::sin(x) * std::cos(y);
+                s.u_at(i,j)[mode] -= u0 * 0.25 * coeff[1] * std::cos(x) * std::sin(y);
+                s.v_at(i,j)[mode] += u0 * 0.25 * coeff[1] * std::sin(x) * std::cos(y);
             };
 
             addPerturbation(1, params.parameter1[0], params.parameter2[0]);
@@ -156,11 +158,18 @@ int main([[maybe_unused]] int  argc,
   [[maybe_unused]] char* argv[])
 {
     Parameters params;
-    readParameters("./parameters.dat", params);
+    readParametersFromXML("./parameters.xml", params);
 
     // Recompute tau from user‑supplied viscosity / Re
     const T physViscosity = params.physVelocity * params.L / params.Re;
     params.tau = 3 * physViscosity + 0.5;
+
+    //--------------------------------------------------------------------------
+    //  Unit converter
+    //--------------------------------------------------------------------------
+    UnitConverter<T> uc;
+    uc.UnitConverterFromResolutionAndRelaxationTime(params);
+    uc.print();
 
     // data directory ---------------------------------------------------------
     const std::string dir     = "./data/tgv/t5/ReNr" + std::to_string(params.order) +
@@ -183,16 +192,16 @@ int main([[maybe_unused]] int  argc,
     //--------------------------------------------------------------------------
     //  Build LBM object
     //--------------------------------------------------------------------------
-    sglbm<T> s(dir, params, uq);
-    s.UnitConverterFromResolutionAndRelaxationTime(params);
+    sglbm<T> s(dir, uc, uq);
 
-    setGeometry(s);
-    initialize(s, params);
+    setGeometry(s, uc);
+    initialize(s, params, uc);
 
     //--------------------------------------------------------------------------
     //  Time stepping
     //--------------------------------------------------------------------------
-    const T td = 1.0 / (s.physViscosity * (s.dx * s.dx * 2.0));
+    const T td = 1.0 / (uc.getPhysViscosity() * (uc.getDx() * uc.getDx() * 2.0));
+    std::cout << "td: " << td << std::endl;
     const int maxIter = static_cast<int>(td * 0.5);
     const int outputInterval = 100;
 
@@ -217,7 +226,7 @@ int main([[maybe_unused]] int  argc,
         {
             if (iter % outputInterval == 0 || iter == maxIter) {
                 double now = omp_get_wtime();
-                T err = calc_tke_error(s, iter);
+                T err = calc_tke_error(s, uc, iter);
                 std::cout << "iter: " << iter
                           << ", Δt: " << now - tCheckpoint << " s"
                           << ", TKE err: " << err << std::endl;
@@ -230,19 +239,19 @@ int main([[maybe_unused]] int  argc,
 
     // final output -----------------------------------------------------------                
     double now = omp_get_wtime();
-                T err = calc_tke_error(s, iterOut);
+    T err = calc_tke_error(s, uc, iterOut);
                 std::cout << "iter: " << iterOut
                           << ", Δt: " << now - tCheckpoint << " s"
                           << ", TKE err: " << err << std::endl;
     s.output(dir, iterOut);
     double tEnd = omp_get_wtime();
-    T errFinal = calc_tke_error(s, iterOut);
+    T errFinal = calc_tke_error(s, uc, iterOut);
 
     std::cout << "total time: " << tEnd - tStart << " s, final TKE err: " << errFinal << std::endl;
 
-    velocity_central(dir, s, (s.nx/2)+1, (s.ny/2)+1);
-    velocity_all(dir, s);
-    outputTKE(dir, s, iterOut, tEnd - tStart);
+    velocity_central(dir, s, uc, (s.nx/2)+1, (s.ny/2)+1);
+    velocity_all(dir, s, uc);
+    outputTKE(dir, s, uc, iterOut, tEnd - tStart);
 
     return 0;
 }
