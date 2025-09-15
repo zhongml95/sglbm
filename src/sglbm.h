@@ -1,7 +1,7 @@
 #ifndef SGLBM_H
 #define SGLBM_H
-#include <../../src/uq2D.h>
-#include <../../src/uq2D.hh>
+#include "uq.h"
+#include "uq.hh"
 #include <iostream>
 #include <fstream>
 #include <ctime>
@@ -13,6 +13,9 @@
 // #define onlyUVCollocation
 #define stochastic_omega
 // #define constant_omega
+
+using namespace olb;
+using namespace olb::uq;
 
 template<typename T>
 class sglbm{
@@ -60,7 +63,7 @@ public:
     UncertaintyQuantification<T>& uq)
     : dir(_dir) {
 
-    ops        = uq.getOps();
+    ops = std::make_unique<olb::uq::GeneralizedPolynomialChaos<T>>(uq.getOps());
     No         = ops->getPolynomialsOrder();
     total_nq   = ops->getQuadraturePointsNumber();
     parameter1 = params.parameter1;
