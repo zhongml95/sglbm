@@ -1,0 +1,20 @@
+<Parameters>
+  <points_weights_method>1</points_weights_method>
+  <order>3</order>
+  <nq>7</nq>
+  <polynomialType>0</polynomialType>
+  <resolution>32</resolution>
+
+  <parameter1>0.8</parameter1>
+  <parameter2>1.2</parameter2>
+
+  <L>6.28318530718</L>
+  <lx>6.28318530718</lx>
+  <ly>6.28318530718</ly>
+
+  <Re>15.0</Re>
+  <tau>0.51206</tau>
+  <physVelocity>0.01</physVelocity>
+  <Ma>0.0125</Ma>
+  <physViscosity>0.0</physViscosity>
+</Parameters>
