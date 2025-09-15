@@ -30,7 +30,4 @@
 #include "uncertaintyQuantification.hh"
 #include "filesIO.hh"
 
-
-#include "utils.hh"
-
 #endif // UQ_HH

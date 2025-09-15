@@ -40,6 +40,4 @@
 #include "genzKeisterLibrary.h"
 #include "fft.h"
 
-#include "utils.h"
-
 #endif // UQ_H
