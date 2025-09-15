@@ -18,12 +18,12 @@ Key features:
 - **Intrusive polynomial chaos expansion (gPC)** within LBM collision and streaming operators  
 - **Hermite & Legendre polynomial bases** with configurable order  
 - **Smolyak sparse grids & tensor quadrature rules**  
-- **High-performance C++20 implementation** with MPI parallelization  
+- **High-performance C++20 implementation** with OpenMP parallelization  
 - Compatible with **OpenLB** data structures and workflows  
 
 Applications include:
 - Fluid dynamics with uncertain boundary conditions or parameters  
-- Propagation of stochastic inflow conditions in urban/porous flows  
+- Propagation of stochastic inflow conditions and uncertain viscosity 
 - Benchmarking against non-intrusive UQ methods (MCS, SC-gPC, etc.)
 
 ---
@@ -31,9 +31,7 @@ Applications include:
 ## ⚙️ Installation
 
 ### Dependencies
-- C++20 compiler (tested with GCC ≥ 11, Clang ≥ 14)  
-- [OpenMPI](https://www.open-mpi.org/) (for distributed parallel runs)  
-- [OpenLB](http://www.openlb.net/) (linked as submodule or external dependency)  
+- C++20 compiler (tested with GCC ≥ 11, Clang ≥ 14)
 - CMake ≥ 3.20  
 
 ### Build
