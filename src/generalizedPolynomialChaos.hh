@@ -465,14 +465,16 @@ void GeneralizedPolynomialChaos<T>::convert2affinePCE(const Distribution<T>& dis
     T a2     = 0.5 * (distribution.param2 - distribution.param1);
     chaos[0] = a1;
     chaos[1] = a2;
+    break;
   }
   case DistributionType::Normal: {
     chaos[0] = distribution.param1;
     chaos[1] = distribution.param2;
+    break;
   }
   // Add cases for other distributions
   default:
-    throw std::runtime_error("Unsupported distribution type for GPC.");
+    throw std::runtime_error("Unsupported distribution type for convert2affinePCE.");
   }
 }
 

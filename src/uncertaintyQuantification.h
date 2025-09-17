@@ -88,6 +88,11 @@ public:
   std::vector<std::vector<T>> getSamplingPoints();
   std::size_t                 getSamplesNumber();
 
+  // getter for distributions
+  const std::vector<Distribution<T>>& getDistributions() const {
+      return distributions;
+  }
+
   // Statistical moments
   T mean(const std::vector<T>& samples);
   T std(const std::vector<T>& samples);

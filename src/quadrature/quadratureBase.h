@@ -45,6 +45,39 @@ public:
   virtual const std::vector<T>& getWeights() const = 0;
 };
 
+// Helper: map string to QuadratureMethod
+inline olb::uq::Quadrature::QuadratureMethod
+toQuadratureMethod(const std::string& rule, unsigned nq, unsigned order) {
+    using QM = olb::uq::Quadrature::QuadratureMethod;
+    std::string s = rule;
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    if (s == "gauss" || s == "gaussquadrature" || s == "legendre")
+        return QM::GaussQuadrature;
+    if (s == "clenshaw" || s == "clenshawcurtis" || s == "cc")
+        return QM::ClenshawCurtis;
+    if (s == "gk16" || s == "genzkeister16")
+        return QM::GenzKeister16;
+    if (s == "gk18" || s == "genzkeister18")
+        return QM::GenzKeister18;
+    if (s == "gk22" || s == "genzkeister22")
+        return QM::GenzKeister22;
+    if (s == "gk24" || s == "genzkeister24")
+        return QM::GenzKeister24;
+    if (s == "gk" || s == "genzkeister") {
+        // choose a level based on nq or order
+        if ((nq ? nq : order) <= 3) return QM::GenzKeister16;
+        if ((nq ? nq : order) <= 5) return QM::GenzKeister18;
+        if ((nq ? nq : order) <= 7) return QM::GenzKeister22;
+        return QM::GenzKeister24;
+    }
+
+    // default
+    return QM::GaussQuadrature;
+}
+
+
 } // namespace Quadrature
 
 } // namespace uq

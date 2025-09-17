@@ -30,13 +30,33 @@
 namespace olb {
 
 namespace uq {
-
+  
 // Enumeration to specify the distribution type
 enum class DistributionType {
   Uniform,
   Normal,
   // MultivariateNormal
 };
+
+  
+// --- helpers: string <-> enum ---
+inline DistributionType distributionTypeFromString(std::string s) {
+    // case-insensitive, with a few aliases
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+    if (s == "uniform") return DistributionType::Uniform;
+    if (s == "normal" || s == "gaussian" || s == "gauss") return DistributionType::Normal;
+    throw std::invalid_argument("Unknown distribution type: " + s);
+}
+
+inline std::string toString(DistributionType t) {
+    switch (t) {
+        case DistributionType::Uniform: return "Uniform";
+        case DistributionType::Normal:  return "Normal";
+        default:                        return "Unknown";
+    }
+}
+
 
 // Struct to hold distribution information
 template <typename T>
@@ -88,6 +108,52 @@ T affine(T x, const Distribution<T>& dist)
     throw std::runtime_error("Unsupported distribution type for affine transformation.");
   }
 }
+
+
+// --- single factories ---
+template <typename T>
+inline Distribution<T> createDistribution(DistributionType type, T p1, T p2) {
+    switch (type) {
+        case DistributionType::Uniform:
+            // p1=min, p2=max
+            if (!(p1 <= p2)) {
+                throw std::invalid_argument("Uniform: require min <= max.");
+            }
+            return uniform<T>(p1, p2);
+
+        case DistributionType::Normal:
+            // p1=mean, p2=stddev
+            if (!(p2 > T(0))) {
+                throw std::invalid_argument("Normal: stddev must be > 0.");
+            }
+            return normal<T>(p1, p2);
+    }
+    throw std::invalid_argument("Unsupported DistributionType.");
+}
+
+template <typename T>
+inline Distribution<T> createDistribution(const std::string& typeStr, T p1, T p2) {
+    return createDistribution<T>(distributionTypeFromString(typeStr), p1, p2);
+}
+
+// --- batch factory (handy for XML vectors) ---
+template <typename T>
+inline std::vector<Distribution<T>>
+createDistributions(const std::vector<std::string>& types,
+                    const std::vector<T>& p1,
+                    const std::vector<T>& p2)
+{
+    if (types.size() != p1.size() || types.size() != p2.size()) {
+        throw std::invalid_argument("createDistributions: size mismatch among types, p1, p2.");
+    }
+    std::vector<Distribution<T>> out;
+    out.reserve(types.size());
+    for (size_t i = 0; i < types.size(); ++i) {
+        out.push_back(createDistribution<T>(types[i], p1[i], p2[i]));
+    }
+    return out;
+}
+
 
 } // namespace uq
 

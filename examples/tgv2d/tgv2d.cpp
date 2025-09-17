@@ -24,8 +24,8 @@ using namespace olb;
 //  Compile‑time switches for the stochastic parameter you want to study
 // -----------------------------------------------------------------------------
 // #define stochastic_Re
-#define stochastic_viscosity
-// #define stochastic_velocity
+// #define stochastic_viscosity
+#define stochastic_velocity
 
 // -----------------------------------------------------------------------------
 //  Helpers
@@ -60,7 +60,7 @@ void setGeometry(sglbm<T>& s, UnitConverter<T>& uc)
 // -----------------------------------------------------------------------------
 
 template<typename T>
-void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params, UnitConverter<T>& uc)
+void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params, UnitConverter<T>& uc, UncertaintyQuantification<T>& uq)
 {
     s.prepareLattice();
     double u0 = uc.getPhysVelocity() / uc.getConversionVelocity();
@@ -96,7 +96,7 @@ void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params, UnitConv
 
     #else   // deterministic omega (default)
         omegaRan.assign(s.get_quadrature_points_number(),
-                        1.0 / (3.0 * (s.physVelocity * s.L / s.Re) / uc.getConversionViscosity() + 0.5));
+                        1.0 / (3.0 * (uc.getPhysVelocity() * uc.getL() / uc.getRe()) / uc.getConversionViscosity() + 0.5));
     #endif
 
         s.ops->randomToChaos(omegaRan, omegaChaos);
@@ -130,18 +130,41 @@ void initialize(sglbm<T>& s, [[maybe_unused]] const Parameters& params, UnitConv
 
         #if defined(stochastic_velocity)
             // add velocity perturbations on chaos modes 1‑4
-            auto addPerturbation = [&](int mode, T a, T b) {
-                std::array<T,2> coeff{};
-                auto dist = uniform(a,b);
-                s.ops->convert2affinePCE(dist, coeff);
-                s.u_at(i,j)[mode] -= u0 * 0.25 * coeff[1] * std::cos(x) * std::sin(y);
-                s.v_at(i,j)[mode] += u0 * 0.25 * coeff[1] * std::sin(x) * std::cos(y);
-            };
+            // auto addPerturbation = [&](int mode, Distribution<T> dist) {
+            //     std::vector<double> coeff(2);
+            //     s.ops->convert2affinePCE(dist, coeff);
+            //     s.u_at(i,j)[mode] -= uc.getPhysVelocity() * 0.25 * coeff[1] * std::cos(4*x) * std::sin(4*y);
+            //     s.v_at(i,j)[mode] += uc.getPhysVelocity() * 0.25 * coeff[1] * std::sin(4*x) * std::cos(4*y);
+            // };
 
-            addPerturbation(1, params.parameter1[0], params.parameter2[0]);
-            addPerturbation(2, params.parameter1[1], params.parameter2[1]);
-            addPerturbation(3, params.parameter1[2], params.parameter2[2]);
-            addPerturbation(4, params.parameter1[3], params.parameter2[3]);
+            // auto dists = uq.getDistributions();
+            // for (int mode = 1; mode <= 4; ++mode)
+            //     addPerturbation(mode, dists[mode - 1]);
+        auto dists = uq.getDistributions();
+
+        std::vector<double> perturbation_chaos_0(params.order+1, 0.0);
+        auto dist1 = uniform(params.parameter1[0] * std::sin(2*x) * std::sin(2*y), params.parameter2[0] * std::sin(2*x) * std::sin(2*y));
+        s.ops->convert2affinePCE(dist1, perturbation_chaos_0);
+        s.u_at(i,j)[1] -= u0 * 0.25 * perturbation_chaos_0[1] * std::cos(x) * std::sin(y);
+        s.v_at(i,j)[1] += u0 * 0.25 * perturbation_chaos_0[1] * std::sin(x) * std::cos(y);
+
+        std::vector<double> perturbation_chaos_1(params.order+1, 0.0);
+        auto dist2 = uniform(params.parameter1[1] * std::sin(2*x) * std::cos(2*y), params.parameter2[1] * std::sin(2*x) * std::cos(2*y));
+        s.ops->convert2affinePCE(dist2, perturbation_chaos_1);
+        s.u_at(i,j)[2] -= u0 * 0.25 * perturbation_chaos_1[1] * std::cos(x) * std::sin(y);
+        s.v_at(i,j)[2] += u0 * 0.25 * perturbation_chaos_1[1] * std::sin(x) * std::cos(y);
+
+        std::vector<double> perturbation_chaos_2(params.order+1, 0.0);
+        auto dist3 = uniform(params.parameter1[2] * std::cos(2*x) * std::sin(2*y), params.parameter2[2] * std::cos(2*x) * std::sin(2*y));
+        s.ops->convert2affinePCE(dist3, perturbation_chaos_2);
+        s.u_at(i,j)[3] -= u0 * 0.25 * perturbation_chaos_2[1] * std::cos(x) * std::sin(y);
+        s.v_at(i,j)[3] += u0 * 0.25 * perturbation_chaos_2[1] * std::sin(x) * std::cos(y);
+
+        std::vector<double> perturbation_chaos_3(params.order+1, 0.0);
+        auto dist4 = uniform(params.parameter1[3] * std::cos(2*x) * std::cos(2*y), params.parameter2[3] * std::cos(2*x) * std::cos(2*y));
+        s.ops->convert2affinePCE(dist4, perturbation_chaos_3);
+        s.u_at(i,j)[4] -= u0 * 0.25 * perturbation_chaos_3[1] * std::cos(x) * std::sin(y);
+        s.v_at(i,j)[4] += u0 * 0.25 * perturbation_chaos_3[1] * std::sin(x) * std::cos(y);
         #endif
         }
     }
@@ -185,9 +208,27 @@ int main([[maybe_unused]] int  argc,
     //  Uncertainty‑quantification setup (GPC)
     //--------------------------------------------------------------------------
     UncertaintyQuantification<T> uq(UQMethod::GPC);
-    auto distVisc = uniform(params.parameter1[0] * physViscosity,
+    #ifdef stochastic_viscosity
+        auto dist = uniform(params.parameter1[0] * physViscosity,
                             params.parameter2[0] * physViscosity);
-    uq.initializeGPC(params.order, params.nq, distVisc);
+    #elif defined(stochastic_Re)
+        // Re is handled inside initialize()
+        auto dist = uniform(physViscosity, physViscosity); // dummy
+    #elif defined(stochastic_velocity)
+        auto dist = olb::uq::createDistributions<T>(
+            params.distributionType,
+            params.parameter1,
+            params.parameter2
+        );
+    #endif
+
+    auto quadratureRule = olb::uq::Quadrature::toQuadratureMethod(params.quadratureRule,
+                                                        params.nq,
+                                                        params.order);
+
+    uq.initializeGPC(params.order, params.nq, dist,
+                    quadratureRule,
+                    params.sparse);
 
     //--------------------------------------------------------------------------
     //  Build LBM object
@@ -195,7 +236,7 @@ int main([[maybe_unused]] int  argc,
     sglbm<T> s(dir, uc, uq);
 
     setGeometry(s, uc);
-    initialize(s, params, uc);
+    initialize(s, params, uc, uq);
 
     //--------------------------------------------------------------------------
     //  Time stepping
