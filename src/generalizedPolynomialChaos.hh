@@ -389,13 +389,6 @@ void GeneralizedPolynomialChaos<T>::getPointsAndWeights(std::vector<std::vector<
 template <typename T>
 std::vector<std::vector<T>> GeneralizedPolynomialChaos<T>::getStochasticCollocationSample()
 {
-  // std::vector<std::vector<T>> samples(totalNq, std::vector<T>(randomNumberDimension));
-
-  // for (std::size_t j = 0; j < randomNumberDimension; ++j) {
-  //   for (std::size_t i = 0; i < totalNq; ++i) {
-  //     samples[i][j] = affine(points[j][pointsWeightsIndexList[i][j]], distributions[j]);
-  //   }
-  // }
   return points;
 }
 

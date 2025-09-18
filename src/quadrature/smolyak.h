@@ -71,7 +71,7 @@ void get1DRule(
 
   if (quadratureMethod == olb::uq::Quadrature::QuadratureMethod::ClenshawCurtis) {
     // Typical nested CC choice: nq = 2^level + 1, with level=0 -> 1 node
-    nq = (level_i <= 0) ? 1u : ((1u << level_i) + 1u);
+    nq = (level_i == 0) ? 0u : (1u << level_i);
   }
   else if (quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GaussLegendre
         || quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GaussHermite) {

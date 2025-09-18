@@ -1,7 +1,7 @@
 <Parameters>
   <!-- Quadrature / polynomial settings -->
-  <quadratureRule>legendre</quadratureRule>
-  <sparse>false</sparse>
+  <quadratureRule>cc</quadratureRule>
+  <sparse>true</sparse>
   <order>3</order>
   <nq>4</nq>
 

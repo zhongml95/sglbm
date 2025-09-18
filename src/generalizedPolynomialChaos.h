@@ -56,9 +56,6 @@ public:
 
   // Evaluation functions
   T evaluate(std::size_t n_order, std::size_t k);
-  T evaluate(std::size_t n_order, std::size_t k, std::size_t phi_i);
-  T evaluate(std::size_t n_order, const std::vector<std::size_t>& idx);
-  T evaluate(std::size_t n_order, T x, std::size_t phi_i);
   T evaluate_polynomial(std::size_t order_max, std::size_t k);
 
   // Compute phiRan matrix
@@ -109,9 +106,6 @@ private:
   std::vector<std::vector<std::size_t>>    inds;              // Multi-indices
   std::vector<std::vector<T>>              points;            // Points for each dimension
   std::vector<T>                           weights;           // Weights for each dimension
-  // std::vector<std::vector<T>>              pointsTensor;      // Tensor product of points
-  // std::vector<T>                           weightsMultiplied; // Combined weights
-  // std::vector<std::vector<std::size_t>>    pointsWeightsIndexList;
   std::vector<std::vector<std::vector<T>>> coefficients; // Coefficients of polynomials
 
   std::vector<T> phiRan;   // Evaluated polynomials at quadrature points
@@ -140,20 +134,6 @@ private:
   // Helper functions
   std::vector<std::size_t> findIndex(std::size_t idx, std::size_t dimension, std::size_t nq);
   void calculateMultiIndices(std::size_t d, std::size_t n, std::vector<std::vector<std::size_t>>& indices);
-
-  // std::shared_ptr<polynomials::polynomialBasis<T>> createPolynomialBasis(const Distribution<T>& dist)
-  // {
-  //   switch (dist.type) {
-  //   case DistributionType::Uniform:
-  //     return std::make_shared<polynomials::LegendreBasis<T>>();
-  //   case DistributionType::Normal:
-  //     return std::make_shared<polynomials::HermiteBasis<T>>();
-  //   // Add cases for other distributions
-  //   default:
-  //     throw std::runtime_error("Unsupported distribution type for GPC.");
-  //   }
-  // }
-
 };
 
 } // namespace uq
