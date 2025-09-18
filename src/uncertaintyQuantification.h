@@ -66,11 +66,20 @@ public:
   ~UncertaintyQuantification() = default;
 
   // Initialization functions
-  void initializeGPC(std::size_t order, std::size_t nq, Distribution<T> distribution,
-                     Quadrature::QuadratureMethod quadratureMethod = Quadrature::QuadratureMethod::GaussQuadrature, bool sparseGrid = false);
-  void initializeGPC(std::size_t order, std::size_t nq, const std::vector<Distribution<T>>& distributions,
-                     Quadrature::QuadratureMethod quadratureMethod = Quadrature::QuadratureMethod::GaussQuadrature, bool sparseGrid = false);
+  // template <typename T>
+  void initializeGPC(std::size_t order,
+                    std::size_t nq,
+                    Distribution<T> distribution,
+                    const olb::uq::StochasticCollocationGrid<T>& grid,
+                    std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases);
 
+  // template <typename T>
+  void initializeGPC( std::size_t order,
+                      std::size_t nq,
+                      const std::vector<Distribution<T>>& distributions,
+                      const olb::uq::StochasticCollocationGrid<T>& grid,
+                      std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases );
+                    
   void initializeMonteCarlo(std::size_t numSamples, const std::vector<Distribution<T>>& distributions,
                             unsigned int seed);
   void initializeMonteCarlo(std::size_t numSamples, Distribution<T> distribution, unsigned int seed);
@@ -122,10 +131,10 @@ private:
   std::size_t                                    No;    // total order of polynomials system (for GPC)
   std::size_t                                    nq;    // Number of quadrature points per dimension (for GPC)
   std::unique_ptr<GeneralizedPolynomialChaos<T>> ops;
-  std::vector<std::vector<T>>                    weights;           // Weights for quadrature (GPC)
+  // std::vector<std::vector<T>>                    weights;           // Weights for quadrature (GPC)
   std::vector<T>                                 weightsMultiplied; // Combined weights (GPC)
   std::vector<std::vector<std::size_t>>          multiIndices;      // Multi-indices (GPC)
-  std::vector<std::shared_ptr<Polynomials::PolynomialBasis<T>>> polynomialBases;
+  std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases;
   Quadrature::QuadratureMethod                                  quadratureMethod; // Quadrature method (GPC)
 
   // Sampling method instances

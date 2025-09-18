@@ -20,7 +20,6 @@
   #include <omp.h>
 #endif
 
-#include "sglbm.cpp"
 #include "parameters.h"
 #include "unitconverter.h"
 

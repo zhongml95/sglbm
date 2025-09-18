@@ -1,17 +1,22 @@
 <Parameters>
-  <points_weights_method>1</points_weights_method>
-  <order>4</order>
-  <nq>9</nq>
-  <polynomialType>0</polynomialType>
+  <!-- Quadrature / polynomial settings -->
+  <quadratureRule>legendre</quadratureRule>
+  <sparse>false</sparse>
+  <order>3</order>
+  <nq>4</nq>
+
+  <!-- Grid / resolution -->
   <resolution>32</resolution>
 
-  <parameter1>0.8</parameter1>
-  <parameter2>1.2</parameter2>
+  <!-- 4D uniform distributions: param1=min, param2=max (per dimension) -->
+  <distributionType>Uniform Uniform Uniform Uniform</distributionType>
+  <parameter1>-0.025 -0.025 -0.025 -0.025</parameter1>
+  <parameter2>0.025 0.025 0.025 0.025</parameter2>
 
+  <!-- Domain / flow params (kept from your original) -->
   <L>6.28318530718</L>
   <lx>6.28318530718</lx>
   <ly>6.28318530718</ly>
-
   <Re>15.0</Re>
   <tau>0.51206</tau>
   <physVelocity>0.01</physVelocity>

@@ -50,7 +50,7 @@ UncertaintyQuantification<T>::UncertaintyQuantification(UQMethod uqMethod)
   nq                    = 0;
   numSamples            = 0;
   randomNumberDimension = 0;
-  quadratureMethod      = Quadrature::QuadratureMethod::GaussQuadrature;
+  quadratureMethod      = Quadrature::QuadratureMethod::GaussLegendre;
   ops                   = nullptr; // Initialize the unique_ptr to nullptr
   monteCarlo            = nullptr;
   quasiMonteCarlo       = nullptr;
@@ -59,26 +59,29 @@ UncertaintyQuantification<T>::UncertaintyQuantification(UQMethod uqMethod)
 
 // Initialization function for GPC
 template <typename T>
-void UncertaintyQuantification<T>::initializeGPC(std::size_t order, std::size_t nq, Distribution<T> distribution,
-                                                 Quadrature::QuadratureMethod quadratureMethod,
-                                                 bool sparseGrid)
+void UncertaintyQuantification<T>::initializeGPC(std::size_t order,
+                                                 std::size_t nq,
+                                                 Distribution<T> distribution,
+                                                 const olb::uq::StochasticCollocationGrid<T>& grid,
+                                                 std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases)
 {
+  // --- store basic settings
   this->order                 = order;
   this->nq                    = nq;
-  this->quadratureMethod      = quadratureMethod;
   this->randomNumberDimension = 1;
-  this->distributions         = {distribution};
+  this->distributions         = { distribution };
 
   // Initialize the GeneralizedPolynomialChaos object
-  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, quadratureMethod, sparseGrid);
+  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, grid, polynomialBases);
+
   // Get quadrature points and weights from ops
-  ops->getPointsAndWeights(points, weights);
+  ops->getPointsAndWeights(points, weightsMultiplied);
 
   No = ops->getPolynomialsOrder();
 
   // Compute the combined weights
   numSamples        = ops->getQuadraturePointsNumber();
-  weightsMultiplied = ops->getWeightsMultiplied();
+  // weightsMultiplied = ops->getWeightsMultiplied();
   // Get multi-indices from ops
   multiIndices = ops->getMultiIndices();
 }
@@ -86,25 +89,24 @@ void UncertaintyQuantification<T>::initializeGPC(std::size_t order, std::size_t 
 template <typename T>
 void UncertaintyQuantification<T>::initializeGPC(std::size_t order, std::size_t nq,
                                                  const std::vector<Distribution<T>>& distributions,
-                                                 Quadrature::QuadratureMethod        quadratureMethod,
-                                                 bool sparseGrid)
+                                                 const olb::uq::StochasticCollocationGrid<T>& grid,
+                                                 std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases)
 {
   this->order                 = order;
   this->nq                    = nq;
-  this->quadratureMethod      = quadratureMethod;
   this->randomNumberDimension = distributions.size();
   this->distributions         = distributions;
 
   // Initialize the GeneralizedPolynomialChaos object
-  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, quadratureMethod, sparseGrid);
+  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, grid, polynomialBases);
   // Get quadrature points and weights from ops
-  ops->getPointsAndWeights(points, weights);
+  ops->getPointsAndWeights(points, weightsMultiplied);
 
   No = ops->getPolynomialsOrder();
 
   // Compute the combined weights
   numSamples        = ops->getQuadraturePointsNumber();
-  weightsMultiplied = ops->getWeightsMultiplied();
+  // weightsMultiplied = ops->getWeightsMultiplied();
   // Get multi-indices from ops
   multiIndices = ops->getMultiIndices();
 }

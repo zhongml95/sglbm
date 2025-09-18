@@ -59,8 +59,6 @@ public:
             points[k] = std::cos(theta[k]);
         }
 
-
-        // Match Python: steps = np.arange(1, order, 2)
         std::vector<T> steps;
         for (std::size_t k = 1; k < order; k += 2) {
             steps.push_back(static_cast<T>(k));

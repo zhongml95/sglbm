@@ -26,6 +26,9 @@
 #define DISTRIBUTION_H
 
 #include <vector>
+#include <string>
+#include <algorithm>
+#include <stdexcept>
 
 namespace olb {
 
@@ -49,13 +52,24 @@ inline DistributionType distributionTypeFromString(std::string s) {
     throw std::invalid_argument("Unknown distribution type: " + s);
 }
 
-inline std::string toString(DistributionType t) {
+inline std::string distributionTypeToString(DistributionType t) {
     switch (t) {
         case DistributionType::Uniform: return "Uniform";
         case DistributionType::Normal:  return "Normal";
         default:                        return "Unknown";
     }
 }
+
+inline std::vector<DistributionType>
+distributionTypesFromStrings(const std::vector<std::string>& strs) {
+    std::vector<DistributionType> types;
+    types.reserve(strs.size());
+    for (auto& s : strs) {
+        types.push_back(distributionTypeFromString(s));
+    }
+    return types;
+}
+
 
 
 // Struct to hold distribution information

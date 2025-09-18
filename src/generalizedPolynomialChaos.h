@@ -36,9 +36,9 @@
 #include "distribution.h"
 
 // Include the polynomial basis and quadrature headers
-#include "polynomial.h"
-
+#include "polynomials/polynomial.h"
 #include "quadrature/quadrature.h"
+#include "stochasticCollocationGrid.h"
 
 namespace olb {
 
@@ -48,8 +48,11 @@ template <typename T>
 class GeneralizedPolynomialChaos {
 public:
   // Constructor
-  GeneralizedPolynomialChaos(std::size_t order, std::size_t nq, const std::vector<Distribution<T>>& distributions,
-                             Quadrature::QuadratureMethod quadratureMethod, bool sparseGrid = false);
+  GeneralizedPolynomialChaos(std::size_t order,
+                             std::size_t nq,
+                             const std::vector<Distribution<T>>& distributions,
+                             const olb::uq::StochasticCollocationGrid<T>& grid,
+                             std::vector<std::shared_ptr<olb::uq::polynomials::polynomialBasis<T>>> _polynomialBases);
 
   // Evaluation functions
   T evaluate(std::size_t n_order, std::size_t k);
@@ -81,13 +84,12 @@ public:
   // Getters
   std::size_t getPolynomialsOrder() const;
   std::size_t getQuadraturePointsNumber() const;
-  void        getPointsAndWeights(std::vector<std::vector<T>>& _points, std::vector<std::vector<T>>& _weights);
   void        getPointsAndWeights(std::vector<std::vector<T>>& _points, std::vector<T>& _weights);
   std::vector<std::vector<T>> getStochasticCollocationSample();
   void           getTensors(std::vector<T>& t2Product, std::vector<T>& t2Product_inv, std::vector<T>& t3Product);
   std::vector<T> getWeightsMultiplied() const;
   // Template function to get the polynomial basis at a specific dimension (i)
-  std::shared_ptr<Polynomials::PolynomialBasis<T>> getPolynomialBasis(std::size_t i) const;
+  std::shared_ptr<polynomials::polynomialBasis<T>> getPolynomialBasis(std::size_t i) const;
   std::vector<std::vector<std::size_t>>            getMultiIndices() const;
 
   void getPhiRan(std::vector<T>& phiRan);
@@ -106,10 +108,10 @@ private:
   std::size_t                              randomNumberDimension;
   std::vector<std::vector<std::size_t>>    inds;              // Multi-indices
   std::vector<std::vector<T>>              points;            // Points for each dimension
-  std::vector<std::vector<T>>              weights;           // Weights for each dimension
+  std::vector<T>                           weights;           // Weights for each dimension
   // std::vector<std::vector<T>>              pointsTensor;      // Tensor product of points
-  std::vector<T>                           weightsMultiplied; // Combined weights
-  std::vector<std::vector<std::size_t>>    pointsWeightsIndexList;
+  // std::vector<T>                           weightsMultiplied; // Combined weights
+  // std::vector<std::vector<std::size_t>>    pointsWeightsIndexList;
   std::vector<std::vector<std::vector<T>>> coefficients; // Coefficients of polynomials
 
   std::vector<T> phiRan;   // Evaluated polynomials at quadrature points
@@ -118,40 +120,39 @@ private:
   std::vector<T> t2Product_inv;
   std::vector<T> t3Product;
 
+  bool sparseGrid = false;
+
   bool loadSaveT2T3ProductMatrix = false; // Flag to load/save T2 and T3 product matrices
 
   // Distributions for each dimension
   std::vector<Distribution<T>> distributions;
 
   // Polynomial bases for each dimension
-  std::vector<std::shared_ptr<Polynomials::PolynomialBasis<T>>> polynomialBases;
+  std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases;
 
-  Quadrature::QuadratureMethod quadratureMethod;
-
-  bool sparseGrid; // Flag for sparse grid
+  // Quadrature::QuadratureMethod quadratureMethod;
+  olb::uq::StochasticCollocationGrid<T> grid;
 
   // Initialization functions
   void initializeQuadratures();
   void initializeMatrices();
 
-  void initializePolynomialCoefficients();
-
   // Helper functions
   std::vector<std::size_t> findIndex(std::size_t idx, std::size_t dimension, std::size_t nq);
   void calculateMultiIndices(std::size_t d, std::size_t n, std::vector<std::vector<std::size_t>>& indices);
 
-  std::shared_ptr<Polynomials::PolynomialBasis<T>> createPolynomialBasis(const Distribution<T>& dist)
-  {
-    switch (dist.type) {
-    case DistributionType::Uniform:
-      return std::make_shared<Polynomials::LegendreBasis<T>>();
-    case DistributionType::Normal:
-      return std::make_shared<Polynomials::HermiteBasis<T>>();
-    // Add cases for other distributions
-    default:
-      throw std::runtime_error("Unsupported distribution type for GPC.");
-    }
-  }
+  // std::shared_ptr<polynomials::polynomialBasis<T>> createPolynomialBasis(const Distribution<T>& dist)
+  // {
+  //   switch (dist.type) {
+  //   case DistributionType::Uniform:
+  //     return std::make_shared<polynomials::LegendreBasis<T>>();
+  //   case DistributionType::Normal:
+  //     return std::make_shared<polynomials::HermiteBasis<T>>();
+  //   // Add cases for other distributions
+  //   default:
+  //     throw std::runtime_error("Unsupported distribution type for GPC.");
+  //   }
+  // }
 
 };
 

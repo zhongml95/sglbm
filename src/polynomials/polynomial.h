@@ -21,18 +21,13 @@
  *  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  *  Boston, MA  02110-1301, USA.
  */
-
-// quadrature.h
 #pragma once
-#ifndef QUADRATURE_H
-#define QUADRATURE_H
+#ifndef POLYNOMIAL_H
+#define POLYNOMIAL_H
 
-#include "quadratureBase.h"
-#include "quadratureRules/gaussLegendreQuadrature.h"
-#include "quadratureRules/gaussHermiteQuadrature.h"
-#include "quadratureRules/clenshawCurtisQuadrature.h"
-#include "quadratureRules/genzKeisterQuadrature.h"
-#include "quadratureFactory.h"
-#include "smolyak.h"
+#include "polynomialBasis.h"
+#include "hermiteBasis.h"
+#include "legendreBasis.h"
+#include "polynomialFactory.h"
 
-#endif // QUADRATURE_H
+#endif // POLYNOMIAL_H

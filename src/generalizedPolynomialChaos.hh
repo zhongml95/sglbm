@@ -29,6 +29,7 @@
 #include "generalizedPolynomialChaos.h"
 #include "matrixOperation.h"
 #include "quadrature/quadrature.h"
+#include "stochasticCollocationGrid.h"
 
 #include <numeric>
 #include <algorithm>
@@ -42,10 +43,6 @@
 // #include "quadrature.h"
 
 // Namespace aliases
-template <typename T>
-using LegendreBasis = olb::uq::Polynomials::LegendreBasis<T>;
-template <typename T>
-using HermiteBasis = olb::uq::Polynomials::HermiteBasis<T>;
 
 namespace olb {
 
@@ -53,21 +50,29 @@ namespace uq {
 
 // Constructor
 template <typename T>
-GeneralizedPolynomialChaos<T>::GeneralizedPolynomialChaos(std::size_t _order, std::size_t _nq,
-                                                          const std::vector<Distribution<T>>& _distributions,
-                                                          Quadrature::QuadratureMethod        _quadratureMethod,
-                                                          bool _sparseGrid)
+GeneralizedPolynomialChaos<T>::GeneralizedPolynomialChaos( std::size_t _order, std::size_t _nq,
+                                                           const std::vector<Distribution<T>>& _distributions,
+                                                           const olb::uq::StochasticCollocationGrid<T>& _grid,
+                                                           std::vector<std::shared_ptr<olb::uq::polynomials::polynomialBasis<T>>> _polynomialBases)
     : order(_order)
     , nq(_nq)
     , distributions(_distributions)
-    , quadratureMethod(_quadratureMethod)
-    , sparseGrid(_sparseGrid)
+    , polynomialBases(_polynomialBases)
+    , grid(_grid)
 {
-  // Map distributions to polynomial bases
-  polynomialBases.clear();
-  for (const auto& dist : distributions) {
-    polynomialBases.push_back(createPolynomialBasis(dist));
+  if (polynomialBases.empty()) {
+    throw std::invalid_argument("GPC: polynomialBases is empty.");
   }
+  if (polynomialBases.size() != distributions.size()) {
+    throw std::invalid_argument("GPC: polynomialBases.size() != distributions.size().");
+  }
+  if (grid.points.empty() || grid.weightsMultiplied.empty()) {
+    throw std::invalid_argument("GPC: grid points or weights is empty.");
+  }
+  totalNq = grid.totalNq;
+  points  = grid.points;
+  weights = grid.weightsMultiplied;
+  sparseGrid = grid.isSparse;
 
   // Set randomNumberDimension to the size of distributions
   randomNumberDimension = distributions.size();
@@ -75,162 +80,41 @@ GeneralizedPolynomialChaos<T>::GeneralizedPolynomialChaos(std::size_t _order, st
   // Calculate multi-indices
   calculateMultiIndices(randomNumberDimension, order, inds);
   No = inds.size();
-
   // Initialize polynomial coefficients, quadratures, and matrices
-  initializeQuadratures();
-  initializeMatrices();
+  // initializeQuadratures();
+  // initializeMatrices();
 
-  // Evaluate polynomials at quadrature points
-  evaluatePhiRan();
-
-  // Compute tensors
-  computeTensors();
-}
-
-// Initialize quadratures
-template <typename T>
-void GeneralizedPolynomialChaos<T>::initializeQuadratures()
-{
-  if (!sparseGrid) {
-    points.resize(randomNumberDimension);
-    weights.resize(randomNumberDimension);
-
-    for (std::size_t i = 0; i < randomNumberDimension; ++i) {
-      // auto quadrature = polynomialBases[i]->getQuadrature(nq, quadratureMethod);
-      auto quadrature = olb::uq::Quadrature::makeQuadrature<T>(
-        polynomialBases[i], nq, quadratureMethod
-      );
-
-      points[i]       = quadrature->getPoints();
-      weights[i]      = quadrature->getWeights();
-    }
-    nq = points[0].size(); // Number of quadrature points per dimension
-    totalNq = std::pow(nq, randomNumberDimension);
-  }
-  else {
-    // Generate sparse grid points and weights
-    olb::uq::Quadrature::generateSparseGrid(
-      nq,
-      randomNumberDimension,
-      polynomialBases,
-      quadratureMethod,
-      points,
-      weightsMultiplied
-    );
-    totalNq = points[0].size();
-  }
-}
-
-// Initialize matrices
-template <typename T>
-void GeneralizedPolynomialChaos<T>::initializeMatrices()
-{
   phiRan.resize(totalNq * No, 0.0);
   phiRan_T.resize(totalNq * No, 0.0);
   t2Product.resize(No, 0.0);
   t2Product_inv.resize(No, 0.0);
   t3Product.resize(No * No * No, 0.0);
 
-  pointsWeightsIndexList.resize(totalNq, std::vector<std::size_t>(randomNumberDimension));
 
-  // Compute weightsMultiplied and pointsTensor
-  if (sparseGrid) {
-    // pointsTensor = points;
-    for (std::size_t i = 0; i < totalNq; ++i) {
-      for (std::size_t dim = 0; dim < randomNumberDimension; ++dim) {
-        pointsWeightsIndexList[i][dim] = i;
-      }
-    }
-  }
-  else {
-    // Generate pointsWeightsIndexList
-    for (std::size_t i = 0; i < totalNq; ++i) {
-      pointsWeightsIndexList[i] = findIndex(i, randomNumberDimension, nq);
-    }
+  std::cout << "bug is here" << std::endl;
 
-    weightsMultiplied.resize(totalNq, 1.0);
-    // pointsTensor.resize(totalNq, std::vector<T>(randomNumberDimension));
-    for (std::size_t k = 0; k < totalNq; ++k) {
-      // pointsTensor[k].resize(randomNumberDimension);
-      for (std::size_t dim = 0; dim < randomNumberDimension; ++dim) {
-        std::size_t idx = pointsWeightsIndexList[k][dim];
-        weightsMultiplied[k] *= weights[dim][idx];
-        // pointsTensor[k][dim] = points[dim][idx];
-      }
-    }
-  }
+  std::cout << "size of points: " << points.size() << " x " << points[0].size() << std::endl;
+  // Evaluate polynomials at quadrature points
+  evaluatePhiRan();
+
+  std::cout << "Number of polynomials: " << No << std::endl;
+
+  // Compute tensors
+  computeTensors();
 }
 
-// Initialize polynomial coefficients
-template <typename T>
-void GeneralizedPolynomialChaos<T>::initializePolynomialCoefficients()
-{
-  // std::cout << "Initializing polynomial coefficients..." << std::endl;
-  coefficients.resize(randomNumberDimension);
-  for (std::size_t phi_i = 0; phi_i < randomNumberDimension; ++phi_i) {
-    auto basis = std::static_pointer_cast<LegendreBasis>(polynomialBases[phi_i]);
 
-    coefficients[phi_i].resize(No);
-    for (std::size_t i = 0; i < No; ++i) {
-      coefficients[phi_i][i] = basis->computeCoefficients(i);
-    }
-  }
-}
+
 
 // Evaluate n_order polynomial at point k
 template <typename T>
 T GeneralizedPolynomialChaos<T>::evaluate(std::size_t n_order, std::size_t k)
 {
   T result = 1.0;
-  for (std::size_t i = 0; i < randomNumberDimension; ++i) {
-    result *= evaluate(inds[n_order][i], k, i);
+  for (std::size_t phi_i = 0; phi_i < randomNumberDimension; ++phi_i) {
+    result *= polynomialBases[phi_i]->evaluatePolynomial(inds[n_order][phi_i], points[k][phi_i]);
   }
   return result;
-}
-
-// Evaluate n_order polynomial at point k and dimension phi_i
-template <typename T>
-T GeneralizedPolynomialChaos<T>::evaluate(std::size_t n_order, std::size_t k, std::size_t phi_i)
-{
-  T x;
-  if (sparseGrid)
-      x = points[k][phi_i];
-  else
-      x = points[phi_i][pointsWeightsIndexList[k][phi_i]];
-  return evaluate(n_order, x, phi_i);
-}
-
-// Evaluate n_order polynomial at given multi-index
-template <typename T>
-T GeneralizedPolynomialChaos<T>::evaluate(std::size_t n_order, const std::vector<std::size_t>& idx)
-{
-  T result = 1.0;
-  for (std::size_t i = 0; i < randomNumberDimension; ++i) {
-    result *= evaluate(inds[n_order][i], points[i][idx[i]], i);
-    // std::cout << "points[" << i << "][" << idx[i] << "] = " << points[i][idx[i]] << std::endl;
-  }
-  return result;
-}
-
-// Evaluate polynomial basis at given order, point x, and dimension phi_i
-template <typename T>
-T GeneralizedPolynomialChaos<T>::evaluate(std::size_t n_order, T x, std::size_t phi_i)
-{
-  if (phi_i >= polynomialBases.size()) {
-    throw std::out_of_range("Invalid dimension index phi_i.");
-  }
-  return polynomialBases[phi_i]->evaluatePolynomial(n_order, x);
-}
-
-// Evaluate the polynomial at kth point up to order_max
-template <typename T>
-T GeneralizedPolynomialChaos<T>::evaluate_polynomial(std::size_t order_max, std::size_t k)
-{
-  T sum = 0.0;
-  for (std::size_t i = 0; i <= order_max; ++i) {
-    sum += evaluate(i, k);
-  }
-  return sum;
 }
 
 // Evaluate phiRan matrix
@@ -240,7 +124,8 @@ void GeneralizedPolynomialChaos<T>::evaluatePhiRan()
   // std::cout << "Evaluating phiRan matrix..." << std::endl;
   for (std::size_t k = 0; k < totalNq; ++k) {
     for (std::size_t i = 0; i < No; ++i) {
-      phiRan[k * No + i] = evaluate(i, pointsWeightsIndexList[k]);
+      // phiRan[k * No + i] = evaluate(i, pointsWeightsIndexList[k]);
+      phiRan[k * No + i] = evaluate(i, k);
       // std::cout << phiRan[k * No + i] << " ";
       phiRan_T[i * totalNq + k] = phiRan[k * No + i];
     }
@@ -321,7 +206,7 @@ void GeneralizedPolynomialChaos<T>::computeTensors()
     else {
       for (std::size_t i = 0; i < No; ++i) {
         for (std::size_t m = 0; m < totalNq; ++m) {
-          t2Product[i] += phiRan[m * No + i] * phiRan[m * No + i] * weightsMultiplied[m];
+          t2Product[i] += phiRan[m * No + i] * phiRan[m * No + i] * weights[m];
         }
       }
 
@@ -334,7 +219,7 @@ void GeneralizedPolynomialChaos<T>::computeTensors()
           for (std::size_t k = 0; k < No; ++k) {
             T sum = 0.0;
             for (std::size_t m = 0; m < totalNq; ++m) {
-              sum += phiRan[m * No + i] * phiRan[m * No + j] * phiRan[m * No + k] * weightsMultiplied[m];
+              sum += phiRan[m * No + i] * phiRan[m * No + j] * phiRan[m * No + k] * weights[m];
             }
             t3Product[i * No * No + j * No + k] = sum;
           }
@@ -347,7 +232,7 @@ void GeneralizedPolynomialChaos<T>::computeTensors()
   else {
     for (std::size_t i = 0; i < No; ++i) {
       for (std::size_t m = 0; m < totalNq; ++m) {
-        t2Product[i] += phiRan[m * No + i] * phiRan[m * No + i] * weightsMultiplied[m];
+        t2Product[i] += phiRan[m * No + i] * phiRan[m * No + i] * weights[m];
       }
     }
 
@@ -360,7 +245,7 @@ void GeneralizedPolynomialChaos<T>::computeTensors()
         for (std::size_t k = 0; k < No; ++k) {
           T sum = 0.0;
           for (std::size_t m = 0; m < totalNq; ++m) {
-            sum += phiRan[m * No + i] * phiRan[m * No + j] * phiRan[m * No + k] * weightsMultiplied[m];
+            sum += phiRan[m * No + i] * phiRan[m * No + j] * phiRan[m * No + k] * weights[m];
           }
           t3Product[i * No * No + j * No + k] = sum;
         }
@@ -391,7 +276,7 @@ void GeneralizedPolynomialChaos<T>::randomToChaos(const std::vector<T>& randomVa
 
   // Compute weighted random variables
   for (std::size_t k = 0; k < totalNq; ++k) {
-    weightedRandomVariables[k] = weightsMultiplied[k] * randomVariables[k];
+    weightedRandomVariables[k] = weights[k] * randomVariables[k];
   }
 
   // Compute chaos coefficients
@@ -491,41 +376,33 @@ std::size_t GeneralizedPolynomialChaos<T>::getQuadraturePointsNumber() const
   return totalNq;
 }
 
-template <typename T>
-void GeneralizedPolynomialChaos<T>::getPointsAndWeights(std::vector<std::vector<T>>& _points,
-                                                        std::vector<std::vector<T>>& _weights)
-{
-  _points  = this->points;
-  _weights = this->weights;
-}
-
 // sparse grid
 template <typename T>
 void GeneralizedPolynomialChaos<T>::getPointsAndWeights(std::vector<std::vector<T>>& _points,
                                                         std::vector<T>& _weights)
 {
   _points  = this->points;
-  _weights = this->weightsMultiplied;
+  _weights = this->weights;
 }
 
 
 template <typename T>
 std::vector<std::vector<T>> GeneralizedPolynomialChaos<T>::getStochasticCollocationSample()
 {
-  std::vector<std::vector<T>> samples(totalNq, std::vector<T>(randomNumberDimension));
+  // std::vector<std::vector<T>> samples(totalNq, std::vector<T>(randomNumberDimension));
 
-  for (std::size_t j = 0; j < randomNumberDimension; ++j) {
-    for (std::size_t i = 0; i < totalNq; ++i) {
-      samples[i][j] = affine(points[j][pointsWeightsIndexList[i][j]], distributions[j]);
-    }
-  }
-  return samples;
+  // for (std::size_t j = 0; j < randomNumberDimension; ++j) {
+  //   for (std::size_t i = 0; i < totalNq; ++i) {
+  //     samples[i][j] = affine(points[j][pointsWeightsIndexList[i][j]], distributions[j]);
+  //   }
+  // }
+  return points;
 }
 
 template <typename T>
 std::vector<T> GeneralizedPolynomialChaos<T>::getWeightsMultiplied() const
 {
-  return weightsMultiplied;
+  return weights;
 }
 
 template <typename T>
@@ -538,7 +415,7 @@ void GeneralizedPolynomialChaos<T>::getTensors(std::vector<T>& t2Product, std::v
 }
 
 template <typename T>
-std::shared_ptr<Polynomials::PolynomialBasis<T>>
+std::shared_ptr<polynomials::polynomialBasis<T>>
 GeneralizedPolynomialChaos<T>::getPolynomialBasis(std::size_t dimension) const
 {
   if (dimension >= randomNumberDimension) {

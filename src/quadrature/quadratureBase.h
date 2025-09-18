@@ -35,7 +35,7 @@ namespace uq {
 namespace Quadrature {
 
 enum class QRMethod { HouseholderQR, WilkinsonShiftQR };
-enum class QuadratureMethod { GaussQuadrature, GenzKeister16, GenzKeister18, GenzKeister22, GenzKeister24, ClenshawCurtis };
+enum class QuadratureMethod { GaussLegendre, GaussHermite, GenzKeister16, GenzKeister18, GenzKeister22, GenzKeister24, ClenshawCurtis };
 
 template <typename T>
 class QuadratureBase {
@@ -53,8 +53,10 @@ toQuadratureMethod(const std::string& rule, unsigned nq, unsigned order) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c){ return std::tolower(c); });
 
-    if (s == "gauss" || s == "gaussquadrature" || s == "legendre")
-        return QM::GaussQuadrature;
+    if (s == "gauss" || s == "gausslegendre" || s == "legendre")
+        return QM::GaussLegendre;
+    if (s == "gausshermite" || s == "hermite")
+        return QM::GaussHermite;
     if (s == "clenshaw" || s == "clenshawcurtis" || s == "cc")
         return QM::ClenshawCurtis;
     if (s == "gk16" || s == "genzkeister16")
@@ -74,7 +76,7 @@ toQuadratureMethod(const std::string& rule, unsigned nq, unsigned order) {
     }
 
     // default
-    return QM::GaussQuadrature;
+    return QM::GaussLegendre;
 }
 
 

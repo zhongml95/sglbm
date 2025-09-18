@@ -26,8 +26,8 @@
 #define UQ_HH
 
 #include "generalizedPolynomialChaos.hh"
-#include "polynomial.hh"
 #include "uncertaintyQuantification.hh"
+#include "stochasticCollocationGrid.hh"
 #include "filesIO.hh"
 
 #endif // UQ_HH

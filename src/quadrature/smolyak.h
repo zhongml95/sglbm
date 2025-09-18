@@ -35,7 +35,7 @@
 #include <algorithm>
 
 #include "matrixOperation.h"
-#include "polynomial.h"
+#include "polynomials/polynomial.h"
 #include "quadrature/quadratureBase.h"
 #include "quadrature/quadratureFactory.h"  // for get1DRule to call polynomialBasis->getQuadrature()
 
@@ -61,27 +61,41 @@ static constexpr std::size_t binom(std::size_t n, std::size_t k)
 template <typename T>
 void get1DRule(
     int level_i,
-    int dim,
-    const std::vector<std::shared_ptr<olb::uq::Polynomials::PolynomialBasis<T>>>& polynomialBases,
     olb::uq::Quadrature::QuadratureMethod quadratureMethod,
     std::vector<T>& points,
-    std::vector<T>& weights)
+    std::vector<T>& weights,
+    QRMethod qrMethod = QRMethod::WilkinsonShiftQR)
 {
-  std::size_t m = static_cast<std::size_t>(level_i);
-    if (quadratureMethod == olb::uq::Quadrature::QuadratureMethod::ClenshawCurtis) {
-      // order' = 2^ℓ   (ℓ>0)
-      m = (level_i == 0) ? 0u : (1u << level_i);
-    }
-    else if ((quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GaussQuadrature)) {
-      // classic n-point Gauss rule needs order = n-1
-      m = static_cast<std::size_t>(level_i + 1);
-    }
+  // Map Smolyak "level" to 1D rule size (nq)
+  std::size_t nq = 0;
+
+  if (quadratureMethod == olb::uq::Quadrature::QuadratureMethod::ClenshawCurtis) {
+    // Typical nested CC choice: nq = 2^level + 1, with level=0 -> 1 node
+    nq = (level_i <= 0) ? 1u : ((1u << level_i) + 1u);
+  }
+  else if (quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GaussLegendre
+        || quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GaussHermite) {
+    // Non-nested Gauss: simple mapping nq = level + 1 (≥1)
+    nq = static_cast<std::size_t>(level_i + 1);
+    if (nq == 0) nq = 1; // safety
+  }
+  else if (quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GenzKeister16
+        || quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GenzKeister18
+        || quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GenzKeister22
+        || quadratureMethod == olb::uq::Quadrature::QuadratureMethod::GenzKeister24) {
+    // For GK, treat 'level' as the rule index; ensure ≥1
+    nq = static_cast<std::size_t>(std::max(level_i, 1));
+  }
+  else {
+    throw std::runtime_error("get1DRule: unsupported QuadratureMethod");
+  }
+  
   auto quadrature = olb::uq::Quadrature::makeQuadrature<T>(
-      polynomialBases[dim], m, quadratureMethod
+      nq, quadratureMethod, qrMethod
   );
   if (!quadrature) {
-    throw std::runtime_error("Failed to create quadrature for level " + std::to_string(level_i) +
-                             " and dimension " + std::to_string(dim));
+    throw std::runtime_error("Failed to create quadrature for level "
+                             + std::to_string(level_i));
   }
   points  = quadrature->getPoints();
   weights = quadrature->getWeights();
@@ -126,16 +140,15 @@ template <typename T>
 void generateSparseGrid(
     std::size_t level,  // Smolyak level L
     std::size_t randomNumberDimension,
-    const std::vector<std::shared_ptr<olb::uq::Polynomials::PolynomialBasis<T>>>& polynomialBases,
     olb::uq::Quadrature::QuadratureMethod quadratureMethod,
     std::vector<std::vector<T>>& outputPoints,  // Transposed output
-    std::vector<T>& outputWeightsMultiplied)
-{
+    std::vector<T>& outputWeightsMultiplied,
+    QRMethod qrMethod = QRMethod::WilkinsonShiftQR) {
   // Implement sparse grid generation logic here
   // -----------------------------------------------------------------
   // 1. collect raw nodes and weights (duplicates possible)
   // -----------------------------------------------------------------
-  T tol = 1e-14;
+  const T tol = static_cast<T>(1e-14);
   std::vector<std::vector<T>> rawPts;
   std::vector<T>              rawWts;
 
@@ -157,11 +170,10 @@ void generateSparseGrid(
       for (std::size_t k = 0; k < randomNumberDimension; ++k) {
         get1DRule<T>(
           multiIndex[k],
-          static_cast<int>(k),
-          polynomialBases,
           quadratureMethod,
           axesPts[k],
-          axesWts[k]
+          axesWts[k],
+          qrMethod
         );
       }
 
@@ -236,8 +248,13 @@ for (std::size_t n = 0; n < rawPts.size(); ++n)
           uniqWts.push_back(wt);
       }
   }
-  outputPoints            = MatrixOperations::transposeMatrix(std::move(uniqPts));
+  // outputPoints            = MatrixOperations::transposeMatrix(std::move(uniqPts));
+  outputPoints            = std::move(uniqPts);
   outputWeightsMultiplied = std::move(uniqWts);
+
+  // std::cout << "Sparse grid generated: "
+  //           << outputPoints[0].size() << " points"
+  //           << std::endl;
 
 }
 
