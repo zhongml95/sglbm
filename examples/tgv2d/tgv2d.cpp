@@ -223,30 +223,23 @@ int main([[maybe_unused]] int  argc,
     #endif
 
     // Assume params.distributionType is std::vector<std::string>
-    std::vector<DistributionType> types =
-        distributionTypesFromStrings(params.distributionType);
-    
-    std::cout << "finish distribution types allocate" << std::endl;
+    // std::vector<DistributionType> types =
+    //     distributionTypesFromStrings(params.distributionType);
+    // auto bases = olb::uq::polynomials::createPolynomialBases<T>(dist, params.order);
 
-    auto bases = olb::uq::polynomials::createPolynomialBases<T>(types, params.order);
+    // std::cout << "finish creating polynomial bases" << std::endl;
 
-    std::cout << "finish creating polynomial bases" << std::endl;
+    // auto grid = olb::uq::createCollocationGrid<T>(
+    //             params.nq,   // nq or level depending on sparse flag
+    //             params.order,
+    //             params.quadratureRule,
+    //             params.sparse);
 
-    auto quadratureRule = olb::uq::Quadrature::toQuadratureMethod(params.quadratureRule,
-                                                        params.nq,
-                                                        params.order);
+    // std::cout << "finish creating collocation grid" << std::endl;
 
-    std::cout << "finish getting quadrature rule" << std::endl;
+    // uq.initializeGPC(params.order, params.nq, dist, grid, bases);
 
-    auto grid = olb::uq::createCollocationGrid<double>(
-                4,
-                params.nq,   // nq or level depending on sparse flag
-                quadratureRule,
-                params.sparse);
-
-    std::cout << "finish creating collocation grid" << std::endl;
-
-    uq.initializeGPC(params.order, params.nq, dist, grid, bases);
+    uq.initializeStochasticCollocationGPC(params.order, params.nq, dist, params.quadratureRule, params.sparse);
 
     std::cout << "finish initializing GPC" << std::endl;
 

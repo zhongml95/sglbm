@@ -95,9 +95,11 @@ private:
       weights_[i] = numer / (denom * denom);
     }
 
-    // Don’t normalize here; Hermite total mass is sqrt(pi) (probabilists’).
-    // If you later change conventions (physicists’ Hermite), revisit both
-    // Jacobi entries and weight formula.
+    // Normalize weights to sum to 1 (integral of exp(-x^2) over R)
+    const T intervalLength = static_cast<T>(2);
+    for (auto& w : weights_) {
+      w /= intervalLength;
+    }
   }
 };
 

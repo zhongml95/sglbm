@@ -87,6 +87,10 @@ struct Distribution {
       , param1(param1)
       , param2(param2)
   {}
+
+  DistributionType getType() const noexcept {
+    return type;
+  }
 };
 
 // Factory functions for cleaner syntax

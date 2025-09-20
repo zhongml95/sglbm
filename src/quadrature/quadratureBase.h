@@ -47,7 +47,7 @@ public:
 
 // Helper: map string to QuadratureMethod
 inline olb::uq::Quadrature::QuadratureMethod
-toQuadratureMethod(const std::string& rule, unsigned nq, unsigned order) {
+toQuadratureMethod(const std::string& rule, std::size_t nq, std::size_t order) {
     using QM = olb::uq::Quadrature::QuadratureMethod;
     std::string s = rule;
     std::transform(s.begin(), s.end(), s.begin(),

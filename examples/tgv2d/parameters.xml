@@ -1,6 +1,6 @@
 <Parameters>
   <!-- Quadrature / polynomial settings -->
-  <quadratureRule>cc</quadratureRule>
+  <quadratureRule>cc cc gauss gauss</quadratureRule>
   <sparse>true</sparse>
   <order>3</order>
   <nq>4</nq>

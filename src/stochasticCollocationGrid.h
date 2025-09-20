@@ -34,23 +34,29 @@ struct StochasticCollocationGrid {
 // Build a tensor (dense) grid: matches your old dense branch.
 template <typename T>
 StochasticCollocationGrid<T> createTensorCollocationGrid(
-  const std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>>& bases,
+  size_t dim,
   std::size_t nq,
   Quadrature::QuadratureMethod method);
 
 // Build a Smolyak sparse grid: points[i] is length totalNq; weightsMultiplied size totalNq.
 template <typename T>
 StochasticCollocationGrid<T> createSparseCollocationGrid(
-  const std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>>& bases,
+  size_t dim,
   std::size_t level,
   Quadrature::QuadratureMethod method);
 
 // Convenience: choose tensor vs sparse.
 template <typename T>
 StochasticCollocationGrid<T> createCollocationGrid(
-  const std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>>& bases,
   std::size_t nqOrLevel,
-  Quadrature::QuadratureMethod method,
+  const std::vector<olb::uq::Quadrature::QuadratureMethod>& quadratureMethods,
+  bool sparse);
+
+template <typename T>
+StochasticCollocationGrid<T> createCollocationGrid(
+  std::size_t nqOrLevel,
+  std::size_t polyOrder,
+  const std::vector<std::string>& rules,
   bool sparse);
 
 }} // namespace olb::uq

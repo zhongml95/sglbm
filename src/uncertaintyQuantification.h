@@ -66,23 +66,20 @@ public:
   ~UncertaintyQuantification() = default;
 
   // Initialization functions
-  // template <typename T>
-  void initializeGPC(std::size_t order,
-                    std::size_t nq,
-                    Distribution<T> distribution,
-                    const olb::uq::StochasticCollocationGrid<T>& grid,
-                    std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases);
+  void initializeStochasticCollocationGPC( std::size_t order,
+                                           std::size_t nq,
+                                           const std::vector<Distribution<T>>& distributions,
+                                           const olb::uq::StochasticCollocationGrid<T>& grid,
+                                           std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases );
 
-  // template <typename T>
-  void initializeGPC( std::size_t order,
-                      std::size_t nq,
-                      const std::vector<Distribution<T>>& distributions,
-                      const olb::uq::StochasticCollocationGrid<T>& grid,
-                      std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases );
-                    
+  void initializeStochasticCollocationGPC( std::size_t order, std::size_t nq,
+                                           const std::vector<Distribution<T>>& distributions,
+                                           const std::vector<std::string>& quadratureRules,
+                                           bool sparse = true );
+
   void initializeMonteCarlo(std::size_t numSamples, const std::vector<Distribution<T>>& distributions,
-                            unsigned int seed);
-  void initializeMonteCarlo(std::size_t numSamples, Distribution<T> distribution, unsigned int seed);
+                            unsigned int seed = 12345);
+  void initializeMonteCarlo(std::size_t numSamples, Distribution<T> distribution, unsigned int seed=12345);
 
   void initializeQuasiMonteCarlo(std::size_t numSamples, Distribution<T> distribution,
                                  const std::string& dir_file  = "new-joe-kuo-6.21201",

@@ -59,21 +59,18 @@ UncertaintyQuantification<T>::UncertaintyQuantification(UQMethod uqMethod)
 
 // Initialization function for GPC
 template <typename T>
-void UncertaintyQuantification<T>::initializeGPC(std::size_t order,
-                                                 std::size_t nq,
-                                                 Distribution<T> distribution,
+void UncertaintyQuantification<T>::initializeStochasticCollocationGPC(std::size_t order, std::size_t nq,
+                                                 const std::vector<Distribution<T>>& distributions,
                                                  const olb::uq::StochasticCollocationGrid<T>& grid,
                                                  std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases)
 {
-  // --- store basic settings
   this->order                 = order;
   this->nq                    = nq;
-  this->randomNumberDimension = 1;
-  this->distributions         = { distribution };
+  this->randomNumberDimension = distributions.size();
+  this->distributions         = distributions;
 
   // Initialize the GeneralizedPolynomialChaos object
   ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, grid, polynomialBases);
-
   // Get quadrature points and weights from ops
   ops->getPointsAndWeights(points, weightsMultiplied);
 
@@ -87,15 +84,22 @@ void UncertaintyQuantification<T>::initializeGPC(std::size_t order,
 }
 
 template <typename T>
-void UncertaintyQuantification<T>::initializeGPC(std::size_t order, std::size_t nq,
+void UncertaintyQuantification<T>::initializeStochasticCollocationGPC(std::size_t order, std::size_t nq,
                                                  const std::vector<Distribution<T>>& distributions,
-                                                 const olb::uq::StochasticCollocationGrid<T>& grid,
-                                                 std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases)
+                                                 const std::vector<std::string>& quadratureRules,
+                                                 bool sparse)
 {
   this->order                 = order;
   this->nq                    = nq;
   this->randomNumberDimension = distributions.size();
   this->distributions         = distributions;
+
+  auto polynomialBases = olb::uq::polynomials::createPolynomialBases<T>(distributions, order);
+  auto grid = olb::uq::createCollocationGrid<T>(
+                nq,   // nq or level depending on sparse flag
+                order,
+                quadratureRules,
+                sparse);
 
   // Initialize the GeneralizedPolynomialChaos object
   ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, grid, polynomialBases);

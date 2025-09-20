@@ -55,6 +55,35 @@ createPolynomialBases(const std::vector<olb::uq::DistributionType>& dists,
   return bases;
 }
 
+template <typename T>
+std::vector<std::shared_ptr<polynomialBasis<T>>>
+createPolynomialBases(const std::vector<Distribution<T>>& dists,
+                      std::size_t order)
+{
+  std::vector<std::shared_ptr<polynomialBasis<T>>> bases;
+  bases.reserve(dists.size());
+
+  for (const auto& dist : dists) {
+    switch (dist.getType()) {   // assume Distribution<T> has getType()
+      case olb::uq::DistributionType::Uniform:
+        bases.push_back(std::make_shared<LegendreBasis<T>>(order));
+        break;
+
+      case olb::uq::DistributionType::Normal:
+        bases.push_back(std::make_shared<HermiteBasis<T>>(order));
+        break;
+
+      // You can extend here for Beta, Exponential, etc.
+      default:
+        bases.push_back(std::make_shared<LegendreBasis<T>>(order)); // fallback
+        break;
+    }
+  }
+
+  return bases;
+}
+
+
 } // namespace polynomials
 } // namespace uq
 } // namespace olb

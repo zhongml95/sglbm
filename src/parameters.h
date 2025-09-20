@@ -13,7 +13,7 @@
 #include <stdexcept>
 
 struct Parameters {
-    std::string quadratureRule;
+    std::vector<std::string> quadratureRule;
     std::vector<std::string> distributionType;
     std::vector<double> parameter1;
     std::vector<double> parameter2;
@@ -136,7 +136,7 @@ inline bool readParametersFromXML(const std::string& filePath, Parameters& param
     try {
         auto map = parseSimpleXML(filePath);
 
-        params.quadratureRule   = map.at("quadratureRule");
+        params.quadratureRule   = parseVectorString(map.at("quadratureRule"));
         params.distributionType = parseVectorString(map.at("distributionType"));
         params.parameter1       = parseVectorDouble(map.at("parameter1"));
         params.parameter2       = parseVectorDouble(map.at("parameter2"));

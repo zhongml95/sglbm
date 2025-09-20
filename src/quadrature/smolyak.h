@@ -140,7 +140,7 @@ template <typename T>
 void generateSparseGrid(
     std::size_t level,  // Smolyak level L
     std::size_t randomNumberDimension,
-    olb::uq::Quadrature::QuadratureMethod quadratureMethod,
+    const std::vector<olb::uq::Quadrature::QuadratureMethod>& quadratureMethods,
     std::vector<std::vector<T>>& outputPoints,  // Transposed output
     std::vector<T>& outputWeightsMultiplied,
     QRMethod qrMethod = QRMethod::WilkinsonShiftQR) {
@@ -170,7 +170,7 @@ void generateSparseGrid(
       for (std::size_t k = 0; k < randomNumberDimension; ++k) {
         get1DRule<T>(
           multiIndex[k],
-          quadratureMethod,
+          quadratureMethods[k],
           axesPts[k],
           axesWts[k],
           qrMethod

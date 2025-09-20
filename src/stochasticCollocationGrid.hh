@@ -32,7 +32,7 @@ template <typename T>
 StochasticCollocationGrid<T> createTensorCollocationGrid(
   std::size_t dim,
   std::size_t nq,
-  Quadrature::QuadratureMethod method)
+  const std::vector<olb::uq::Quadrature::QuadratureMethod>& quadratureMethods)
 {
   if (dim == 0) {
     throw std::invalid_argument("createTensorCollocationGrid: dim must be >= 1");
@@ -49,7 +49,7 @@ StochasticCollocationGrid<T> createTensorCollocationGrid(
   g.weights.resize(dim);
 
   for (std::size_t i = 0; i < dim; ++i) {
-    auto q = Quadrature::makeQuadrature<T>(nq, method);
+    auto q = Quadrature::makeQuadrature<T>(nq, quadratureMethods[i]);
     g.points[i]  = q->getPoints();   // length nq
     g.weights[i] = q->getWeights();  // length nq
   }
@@ -101,7 +101,7 @@ StochasticCollocationGrid<T> createTensorCollocationGrid(
 template <typename T>
 StochasticCollocationGrid<T> createSparseCollocationGrid( std::size_t dim,
   std::size_t level,
-  Quadrature::QuadratureMethod method)
+  const std::vector<olb::uq::Quadrature::QuadratureMethod>& quadratureMethods)
 {
   StochasticCollocationGrid<T> g;
   g.isSparse = true;
@@ -110,7 +110,7 @@ StochasticCollocationGrid<T> createSparseCollocationGrid( std::size_t dim,
 
   // Fill dimension-major flattened points and combined weights
   Quadrature::generateSparseGrid<T>(
-    level, dim, method, g.points, g.weightsMultiplied
+    level, dim, quadratureMethods, g.points, g.weightsMultiplied
   );
 
   // totalNq is the number of flattened samples
@@ -122,14 +122,28 @@ StochasticCollocationGrid<T> createSparseCollocationGrid( std::size_t dim,
 
 template <typename T>
 StochasticCollocationGrid<T> createCollocationGrid(
-  size_t dim,
   std::size_t nqOrLevel,
-  Quadrature::QuadratureMethod method,
+  const std::vector<olb::uq::Quadrature::QuadratureMethod>& quadratureMethods,
   bool sparse)
 {
+  const std::size_t dim = quadratureMethods.size();
   return sparse
-    ? createSparseCollocationGrid<T>(dim, nqOrLevel, method)
-    : createTensorCollocationGrid<T>(dim, nqOrLevel, method);
+    ? createSparseCollocationGrid<T>(dim, nqOrLevel, quadratureMethods)
+    : createTensorCollocationGrid<T>(dim, nqOrLevel, quadratureMethods);
+}
+
+template <typename T>
+StochasticCollocationGrid<T> createCollocationGrid(
+  std::size_t nqOrLevel,
+  std::size_t polyOrder,
+  const std::vector<std::string>& rules,
+  bool sparse)
+{
+  std::vector<olb::uq::Quadrature::QuadratureMethod> methods;
+  for (const auto& rule : rules) {
+    methods.push_back(Quadrature::toQuadratureMethod(rule, nqOrLevel, polyOrder));
+  }
+  return createCollocationGrid<T>(nqOrLevel, methods, sparse);
 }
 
 }} // namespace olb::uq

@@ -96,7 +96,11 @@ private:
       weights_[i] = static_cast<T>(2) /
                     ((static_cast<T>(1) - x * x) * dP * dP);
     }
-    // Do NOT renormalize; formula already yields correct normalization (sum=2).
+    // Normalize weights to sum to 1 (interval length)
+    const T intervalLength = static_cast<T>(2);
+    for (auto& w : weights_) {
+      w /= intervalLength;
+    }
   }
 };
 
