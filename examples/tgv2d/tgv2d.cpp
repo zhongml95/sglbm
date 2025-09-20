@@ -211,6 +211,11 @@ int main([[maybe_unused]] int  argc,
     #ifdef stochastic_viscosity
         auto dist = uniform(params.parameter1[0] * physViscosity,
                             params.parameter2[0] * physViscosity);
+        auto dist = olb::uq::createDistributions<T>(
+            "uniform",
+            params.parameter1[0] * physViscosity,
+            params.parameter2[0] * physViscosity
+        );
     #elif defined(stochastic_Re)
         // Re is handled inside initialize()
         auto dist = uniform(physViscosity, physViscosity); // dummy

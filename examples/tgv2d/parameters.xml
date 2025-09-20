@@ -9,7 +9,7 @@
   <resolution>32</resolution>
 
   <!-- 4D uniform distributions: param1=min, param2=max (per dimension) -->
-  <distributionType>Uniform Uniform Uniform Uniform</distributionType>
+  <distributionType>uniform uniform uniform uniform</distributionType>
   <parameter1>-0.025 -0.025 -0.025 -0.025</parameter1>
   <parameter2>0.025 0.025 0.025 0.025</parameter2>
 

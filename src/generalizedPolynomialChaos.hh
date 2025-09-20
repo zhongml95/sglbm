@@ -51,38 +51,22 @@ namespace uq {
 // Constructor
 template <typename T>
 GeneralizedPolynomialChaos<T>::GeneralizedPolynomialChaos( std::size_t _order, std::size_t _nq,
-                                                           const std::vector<Distribution<T>>& _distributions,
                                                            const olb::uq::StochasticCollocationGrid<T>& _grid,
                                                            std::vector<std::shared_ptr<olb::uq::polynomials::polynomialBasis<T>>> _polynomialBases)
     : order(_order)
     , nq(_nq)
-    , distributions(_distributions)
     , polynomialBases(_polynomialBases)
     , grid(_grid)
 {
-  if (polynomialBases.empty()) {
-    throw std::invalid_argument("GPC: polynomialBases is empty.");
-  }
-  if (polynomialBases.size() != distributions.size()) {
-    throw std::invalid_argument("GPC: polynomialBases.size() != distributions.size().");
-  }
-  if (grid.points.empty() || grid.weightsMultiplied.empty()) {
-    throw std::invalid_argument("GPC: grid points or weights is empty.");
-  }
   totalNq = grid.totalNq;
   points  = grid.points;
   weights = grid.weightsMultiplied;
-  sparseGrid = grid.isSparse;
 
-  // Set randomNumberDimension to the size of distributions
-  randomNumberDimension = distributions.size();
+  randomNumberDimension = _polynomialBases.size();
 
   // Calculate multi-indices
   calculateMultiIndices(randomNumberDimension, order, inds);
   No = inds.size();
-  // Initialize polynomial coefficients, quadratures, and matrices
-  // initializeQuadratures();
-  // initializeMatrices();
 
   phiRan.resize(totalNq * No, 0.0);
   phiRan_T.resize(totalNq * No, 0.0);
@@ -90,20 +74,12 @@ GeneralizedPolynomialChaos<T>::GeneralizedPolynomialChaos( std::size_t _order, s
   t2Product_inv.resize(No, 0.0);
   t3Product.resize(No * No * No, 0.0);
 
-
-  std::cout << "bug is here" << std::endl;
-
-  std::cout << "size of points: " << points.size() << " x " << points[0].size() << std::endl;
   // Evaluate polynomials at quadrature points
   evaluatePhiRan();
-
-  std::cout << "Number of polynomials: " << No << std::endl;
 
   // Compute tensors
   computeTensors();
 }
-
-
 
 
 // Evaluate n_order polynomial at point k
@@ -112,7 +88,7 @@ T GeneralizedPolynomialChaos<T>::evaluate(std::size_t n_order, std::size_t k)
 {
   T result = 1.0;
   for (std::size_t phi_i = 0; phi_i < randomNumberDimension; ++phi_i) {
-    result *= polynomialBases[phi_i]->evaluatePolynomial(inds[n_order][phi_i], points[k][phi_i]);
+    result *= phi1D[phi_i][inds[n_order][phi_i]][k];
   }
   return result;
 }
@@ -121,15 +97,21 @@ T GeneralizedPolynomialChaos<T>::evaluate(std::size_t n_order, std::size_t k)
 template <typename T>
 void GeneralizedPolynomialChaos<T>::evaluatePhiRan()
 {
-  // std::cout << "Evaluating phiRan matrix..." << std::endl;
+  phi1D.resize(randomNumberDimension);
+  for (std::size_t d = 0; d < randomNumberDimension; ++d) {
+    auto maxDeg = order; // total degree -> per-dim degree max is 'order'
+    phi1D[d].assign(maxDeg+1, std::vector<T>(totalNq));
+    for (std::size_t k = 0; k < totalNq; ++k) {
+      for (std::size_t p = 0; p <= maxDeg; ++p) {
+        phi1D[d][p][k] = polynomialBases[d]->evaluatePolynomial(p, points[k][d]);
+      }
+    }
+  }
   for (std::size_t k = 0; k < totalNq; ++k) {
     for (std::size_t i = 0; i < No; ++i) {
-      // phiRan[k * No + i] = evaluate(i, pointsWeightsIndexList[k]);
       phiRan[k * No + i] = evaluate(i, k);
-      // std::cout << phiRan[k * No + i] << " ";
       phiRan_T[i * totalNq + k] = phiRan[k * No + i];
     }
-    // std::cout << std::endl;
   }
 }
 
@@ -160,99 +142,56 @@ void GeneralizedPolynomialChaos<T>::calculateMultiIndices(std::size_t d, std::si
   }
 }
 
-template <typename T>
-std::vector<std::size_t> GeneralizedPolynomialChaos<T>::findIndex(std::size_t idx, std::size_t dimension,
-                                                                  std::size_t nq)
-{
-  if (dimension == 1) {
-    return {idx};
-  }
-
-  // General case for dimension > 1
-  std::vector<std::size_t> index(dimension);
-  for (std::size_t i = dimension; i-- > 0;) { // Loop from dimension-1 to 0
-    index[i] = idx % nq;
-    idx /= nq;
-  }
-  return index;
-}
-
-// Compute tensors (t2Product and t3Product)
+// Compute tensors (t2Product and t3Product) with sparse t3
 template <typename T>
 void GeneralizedPolynomialChaos<T>::computeTensors()
 {
-  if (loadSaveT2T3ProductMatrix) {
-    const std::string directoryT2Product = "./t2Product/";
-    if (!directoryExists(directoryT2Product)) {
-      createDirectory(directoryT2Product);
-    }
-    const std::string directoryT3Product = "./t3Product/";
-    if (!directoryExists(directoryT3Product)) {
-      createDirectory(directoryT3Product);
-    }
-    const std::string t2ProductFile = directoryT2Product + "dims_" + std::to_string(randomNumberDimension) + "_order_" +
-                                      std::to_string(order) + "_nq_" + std::to_string(nq) + ".bin";
-    const std::string t3ProductFile = directoryT3Product + "dims_" + std::to_string(randomNumberDimension) + "_order_" +
-                                      std::to_string(order) + "_nq_" + std::to_string(nq) + ".bin";
+  // small threshold to prune numerical near-zeros in triple products
+  const T eps = static_cast<T>(1e-14);
 
-    bool filesExist = fileExists(t2ProductFile) && fileExists(t3ProductFile);
-    if (filesExist) {
-      readVector1D(t2ProductFile, t2Product);
-      for (std::size_t i = 0; i < No; ++i) {
-        t2Product_inv[i] = 1.0 / t2Product[i];
-      }
-      readVector1D(t3ProductFile, t3Product);
-    }
-    else {
-      for (std::size_t i = 0; i < No; ++i) {
-        for (std::size_t m = 0; m < totalNq; ++m) {
-          t2Product[i] += phiRan[m * No + i] * phiRan[m * No + i] * weights[m];
-        }
-      }
+    // t2 diagonal inner products
+    std::fill(t2Product.begin(),     t2Product.end(),     T(0));
+    std::fill(t2Product_inv.begin(), t2Product_inv.end(), T(0));
 
-      for (std::size_t i = 0; i < No; ++i) {
-        t2Product_inv[i] = 1.0 / t2Product[i];
-      }
-
-      for (std::size_t i = 0; i < No; ++i) {
-        for (std::size_t j = 0; j < No; ++j) {
-          for (std::size_t k = 0; k < No; ++k) {
-            T sum = 0.0;
-            for (std::size_t m = 0; m < totalNq; ++m) {
-              sum += phiRan[m * No + i] * phiRan[m * No + j] * phiRan[m * No + k] * weights[m];
-            }
-            t3Product[i * No * No + j * No + k] = sum;
-          }
-        }
-      }
-      saveVector1D(t2ProductFile, t2Product);
-      saveVector1D(t3ProductFile, t3Product);
-    }
-  }
-  else {
     for (std::size_t i = 0; i < No; ++i) {
+      T acc = T(0);
       for (std::size_t m = 0; m < totalNq; ++m) {
-        t2Product[i] += phiRan[m * No + i] * phiRan[m * No + i] * weights[m];
+        const T v = phiRan[m * No + i];
+        acc += v * v * weights[m];
       }
+      t2Product[i] = acc;
+    }
+    for (std::size_t i = 0; i < No; ++i) {
+      const T denom = t2Product[i];
+      t2Product_inv[i] = (std::abs(denom) > eps) ? T(1) / denom : T(0);
     }
 
-    for (std::size_t i = 0; i < No; ++i) {
-      t2Product_inv[i] = 1.0 / t2Product[i];
-    }
+    // Build sparse t3
+    t3RowPtr.assign(No * No + 1, 0);
+    t3KIndex.clear();
+    t3Product.clear();
 
     for (std::size_t i = 0; i < No; ++i) {
       for (std::size_t j = 0; j < No; ++j) {
+        const std::size_t row = i * No + j;
+        t3RowPtr[row] = t3KIndex.size();
+
         for (std::size_t k = 0; k < No; ++k) {
-          T sum = 0.0;
+          T sum = T(0);
           for (std::size_t m = 0; m < totalNq; ++m) {
-            sum += phiRan[m * No + i] * phiRan[m * No + j] * phiRan[m * No + k] * weights[m];
+            const std::size_t base = m * No;
+            sum += phiRan[base + i] * phiRan[base + j] * phiRan[base + k] * weights[m];
           }
-          t3Product[i * No * No + j * No + k] = sum;
+          if (std::abs(sum) > eps) {
+            t3KIndex.push_back(k);
+            t3Product.push_back(sum); // keep "t3Product" as values
+          }
         }
       }
     }
-  }
+    t3RowPtr[No * No] = t3KIndex.size();
 }
+
 
 // Transformation functions
 template <typename T>
@@ -293,24 +232,28 @@ template <typename T>
 void GeneralizedPolynomialChaos<T>::chaosProduct(const std::vector<T>& chaos1, const std::vector<T>& chaos2,
                                                  std::vector<T>& product)
 {
-  product.resize(No, 0.0);
-  std::vector<T> precomputedProductsFlat(No * No);
-
-  for (std::size_t j = 0; j < No; ++j) {
-    for (std::size_t k = 0; k < No; ++k) {
-      precomputedProductsFlat[j * No + k] = chaos1[j] * chaos2[k];
-    }
-  }
+  product.assign(No, T(0));
 
   for (std::size_t i = 0; i < No; ++i) {
-    T sum = 0.0;
+    T coeffSum = T(0);
+
+    // For each j, walk the sparse row (i, j, :)
     for (std::size_t j = 0; j < No; ++j) {
-      for (std::size_t k = 0; k < No; ++k) {
-        std::size_t flatIndex = i * No * No + j * No + k;
-        sum += precomputedProductsFlat[j * No + k] * t3Product[flatIndex];
+      const T c1j = chaos1[j];
+      if (c1j == T(0)) continue;
+
+      const std::size_t row     = i * No + j;           // CSR row id for (i,j)
+      const std::size_t begin   = t3RowPtr[row];
+      const std::size_t end     = t3RowPtr[row + 1];
+
+      // Accumulate c1[j] * c2[k] * G_{i,j,k} over the row's nonzeros
+      for (std::size_t p = begin; p < end; ++p) {
+        const std::size_t k = t3KIndex[p];
+        coeffSum += c1j * chaos2[k] * t3Product[p];     // t3Product holds sparse values
       }
     }
-    product[i] = sum * t2Product_inv[i];
+
+    product[i] = coeffSum * t2Product_inv[i];
   }
 }
 
@@ -376,7 +319,7 @@ std::size_t GeneralizedPolynomialChaos<T>::getQuadraturePointsNumber() const
   return totalNq;
 }
 
-// sparse grid
+
 template <typename T>
 void GeneralizedPolynomialChaos<T>::getPointsAndWeights(std::vector<std::vector<T>>& _points,
                                                         std::vector<T>& _weights)

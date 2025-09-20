@@ -54,19 +54,3 @@ bool deleteDirectory(const std::string& path);
 
 // Utility function to check if a file exists
 bool fileExists(const std::string& name);
-
-// Utility function to save a 1D vector to a binary file
-template <typename T>
-void saveVector1D(const std::string& filePath, const std::vector<T>& vec);
-
-// Utility function to read a 1D vector from a binary file
-template <typename T>
-void readVector1D(const std::string& filePath, std::vector<T>& vec);
-
-// Utility function to save a 3D vector to a binary file
-template <typename T>
-void saveVector3D(const std::string& filePath, const std::vector<std::vector<std::vector<T>>>& vec);
-
-// Utility function to read a 3D vector from a binary file
-template <typename T>
-void readVector3D(const std::string& filePath, std::vector<std::vector<std::vector<T>>>& vec);

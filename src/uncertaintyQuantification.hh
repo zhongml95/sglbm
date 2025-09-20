@@ -70,7 +70,7 @@ void UncertaintyQuantification<T>::initializeStochasticCollocationGPC(std::size_
   this->distributions         = distributions;
 
   // Initialize the GeneralizedPolynomialChaos object
-  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, grid, polynomialBases);
+  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, grid, polynomialBases);
   // Get quadrature points and weights from ops
   ops->getPointsAndWeights(points, weightsMultiplied);
 
@@ -102,7 +102,7 @@ void UncertaintyQuantification<T>::initializeStochasticCollocationGPC(std::size_
                 sparse);
 
   // Initialize the GeneralizedPolynomialChaos object
-  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, distributions, grid, polynomialBases);
+  ops = std::make_unique<GeneralizedPolynomialChaos<T>>(order, nq, grid, polynomialBases);
   // Get quadrature points and weights from ops
   ops->getPointsAndWeights(points, weightsMultiplied);
 
@@ -129,32 +129,6 @@ void UncertaintyQuantification<T>::initializeMonteCarlo(std::size_t             
   monteCarlo = std::make_unique<MonteCarlo<T>>(numSamples, distributions, seed);
 }
 
-// Overload for a single distribution applied to all dimensions
-template <typename T>
-void UncertaintyQuantification<T>::initializeMonteCarlo(std::size_t numSamples, Distribution<T> distribution,
-                                                        unsigned int seed)
-{
-  this->numSamples            = numSamples;
-  this->randomNumberDimension = 1;
-  this->distributions         = {distribution};
-
-  // Create MonteCarlo instance
-  monteCarlo = std::make_unique<MonteCarlo<T>>(numSamples, distribution, seed);
-}
-
-// Initialization function for Quasi-Monte Carlo
-template <typename T>
-void UncertaintyQuantification<T>::initializeQuasiMonteCarlo(std::size_t numSamples, Distribution<T> distribution,
-                                                             const std::string& dir_file, GeneratorType generator)
-{
-  this->numSamples            = numSamples;
-  this->randomNumberDimension = 1;
-  this->distributions         = {distribution};
-
-  // Create QuasiMonteCarlo instance
-  quasiMonteCarlo =
-      std::make_unique<QuasiMonteCarlo<T>>(numSamples, randomNumberDimension, distribution, dir_file, generator);
-}
 
 template <typename T>
 void UncertaintyQuantification<T>::initializeQuasiMonteCarlo(std::size_t                         numSamples,

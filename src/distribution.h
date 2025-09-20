@@ -154,7 +154,7 @@ inline Distribution<T> createDistribution(const std::string& typeStr, T p1, T p2
     return createDistribution<T>(distributionTypeFromString(typeStr), p1, p2);
 }
 
-// --- batch factory (handy for XML vectors) ---
+// --- batch factory ---
 template <typename T>
 inline std::vector<Distribution<T>>
 createDistributions(const std::vector<std::string>& types,

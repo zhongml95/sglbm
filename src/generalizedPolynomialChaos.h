@@ -50,7 +50,6 @@ public:
   // Constructor
   GeneralizedPolynomialChaos(std::size_t order,
                              std::size_t nq,
-                             const std::vector<Distribution<T>>& distributions,
                              const olb::uq::StochasticCollocationGrid<T>& grid,
                              std::vector<std::shared_ptr<olb::uq::polynomials::polynomialBasis<T>>> _polynomialBases);
 
@@ -92,10 +91,6 @@ public:
   void getPhiRan(std::vector<T>& phiRan);
   void getCoefficients(std::vector<std::vector<std::vector<T>>>& polynomialCoeffs);
 
-  // Getter for distributions
-  const std::vector<Distribution<T>>& getDistributions() const {
-    return distributions;
-  }
 
 private:
   std::size_t                              order;
@@ -108,31 +103,22 @@ private:
   std::vector<T>                           weights;           // Weights for each dimension
   std::vector<std::vector<std::vector<T>>> coefficients; // Coefficients of polynomials
 
-  std::vector<T> phiRan;   // Evaluated polynomials at quadrature points
-  std::vector<T> phiRan_T; // Transpose of phiRan
-  std::vector<T> t2Product;
-  std::vector<T> t2Product_inv;
-  std::vector<T> t3Product;
-
-  bool sparseGrid = false;
-
-  bool loadSaveT2T3ProductMatrix = false; // Flag to load/save T2 and T3 product matrices
-
-  // Distributions for each dimension
-  std::vector<Distribution<T>> distributions;
+  std::vector<std::vector<std::vector<T>>> phi1D; // [D][order+1][totalNq]
+  std::vector<T>                           phiRan;   // Evaluated polynomials at quadrature points
+  std::vector<T>                           phiRan_T; // Transpose of phiRan
+  std::vector<T>                           t2Product;
+  std::vector<T>                           t2Product_inv;
+  std::vector<T>                           t3Product;
+  std::vector<std::size_t>                 t3RowPtr; // length No*No + 1
+  std::vector<std::size_t>                 t3KIndex; // length nnz
 
   // Polynomial bases for each dimension
   std::vector<std::shared_ptr<polynomials::polynomialBasis<T>>> polynomialBases;
 
   // Quadrature::QuadratureMethod quadratureMethod;
-  olb::uq::StochasticCollocationGrid<T> grid;
-
-  // Initialization functions
-  void initializeQuadratures();
-  void initializeMatrices();
+  olb::uq::StochasticCollocationGrid<T>    grid;
 
   // Helper functions
-  std::vector<std::size_t> findIndex(std::size_t idx, std::size_t dimension, std::size_t nq);
   void calculateMultiIndices(std::size_t d, std::size_t n, std::vector<std::vector<std::size_t>>& indices);
 };
 

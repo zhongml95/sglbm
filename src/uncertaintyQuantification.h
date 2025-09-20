@@ -79,11 +79,7 @@ public:
 
   void initializeMonteCarlo(std::size_t numSamples, const std::vector<Distribution<T>>& distributions,
                             unsigned int seed = 12345);
-  void initializeMonteCarlo(std::size_t numSamples, Distribution<T> distribution, unsigned int seed=12345);
-
-  void initializeQuasiMonteCarlo(std::size_t numSamples, Distribution<T> distribution,
-                                 const std::string& dir_file  = "new-joe-kuo-6.21201",
-                                 GeneratorType      generator = GeneratorType::Sobol);
+             
   void initializeQuasiMonteCarlo(std::size_t numSamples, const std::vector<Distribution<T>>& distributions,
                                  const std::string& dir_file  = "new-joe-kuo-6.21201",
                                  GeneratorType      generator = GeneratorType::Sobol);
